@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNIPER AMBUSH V2.0</title>
+    <title>SNIPER AMBUSH V2.0 | 帶歷史紀錄版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; }
@@ -13,70 +13,109 @@
         .bg-zinc-900 { background-color: #0f0f0f; }
         .status-active { color: #00ff00; text-shadow: 0 0 10px #00ff00; }
         .status-inactive { color: #ff0000; text-shadow: 0 0 10px #ff0000; }
-        @keyframes pulse-dot { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
         .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
-        .pulse { animation: pulse-dot 1s infinite; }
+        .pulse { animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        #logContainer::-webkit-scrollbar { width: 5px; }
+        #logContainer::-webkit-scrollbar-thumb { background: #555; }
     </style>
 </head>
 <body class="p-4">
     <div class="flex flex-col md:flex-row justify-between items-center border-b border-yellow-700 pb-4 mb-6">
         <div class="flex items-center gap-4">
-            <h1 class="text-3xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V2.0</h1>
-            <button id="masterBtn" onclick="toggleSystem()" class="flex items-center bg-zinc-900 border gold-border px-4 py-1 rounded-full hover:bg-zinc-800 transition">
+            <h1 class="text-3xl font-black text-yellow-500 tracking-tighter text-shadow-lg">⚡ SNIPER V2.0</h1>
+            <button id="masterBtn" onclick="toggleSystem()" class="flex items-center bg-zinc-900 border gold-border px-4 py-1 rounded-full hover:bg-zinc-800">
                 <span id="statusDot" class="dot bg-red-600"></span>
-                <span id="statusText" class="status-inactive font-bold">系統停機</span>
+                <span id="statusText" class="status-inactive font-bold uppercase">OFFLINE</span>
             </button>
         </div>
-        
         <div class="flex gap-2 mt-4 md:mt-0">
-            <input id="coinSearch" type="text" placeholder="搜尋幣種 (AXS)" class="bg-black border gold-border p-2 text-white w-40">
+            <input id="coinSearch" type="text" placeholder="搜尋幣種 (AXS)" class="bg-black border gold-border p-2 text-white w-32 md:w-40">
             <button onclick="pinCoin()" class="bg-yellow-600 text-black px-6 py-2 font-black hover:bg-yellow-400">釘選</button>
         </div>
     </div>
 
-    <div id="dashboard" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    <div class="flex flex-col lg:flex-row gap-6">
+        <div class="flex-1">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">📡 即時監控區 <span class="text-[10px] text-zinc-500 font-normal">每 8 秒同步一次</span></h2>
+            <div id="dashboard" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-white"></div>
+        </div>
+
+        <div class="w-full lg:w-80">
+            <h2 class="text-xl font-bold mb-4 text-red-500 flex items-center gap-2">📂 獵殺日誌 <button onclick="clearLogs()" class="text-[10px] text-zinc-500 underline ml-auto">清除全部</button></h2>
+            <div id="logContainer" class="bg-zinc-900 border border-zinc-800 p-2 h-[500px] overflow-y-auto space-y-2 text-[12px]">
+                </div>
+        </div>
+    </div>
 
     <script>
         const EXCLUDE_LIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'];
+        const SLOPE_THRESHOLD = -0.5;
         let pinnedCoins = [];
         let coinHistory = {};
+        let joinTime = {};
+        let loggedCoins = new Set(); // 防止同一波行情重複洗版日誌
         let isRunning = false;
         let timer = null;
 
-        // 系統開關切換
         function toggleSystem() {
             isRunning = !isRunning;
-            const btn = document.getElementById('masterBtn');
             const dot = document.getElementById('statusDot');
             const text = document.getElementById('statusText');
-
             if (isRunning) {
                 dot.className = "dot bg-green-500 pulse";
-                text.innerText = "監控中 (8s)";
+                text.innerText = "ONLINE (8s)";
                 text.className = "status-active font-bold";
-                updateData(); // 立即執行一次
+                updateData();
                 timer = setInterval(updateData, 8000);
             } else {
                 dot.className = "dot bg-red-600";
-                text.innerText = "系統停機";
+                text.innerText = "OFFLINE";
                 text.className = "status-inactive font-bold";
                 clearInterval(timer);
             }
         }
 
         function pinCoin() {
-            let symbol = document.getElementById('coinSearch').value.toUpperCase().trim();
-            if (!symbol) return;
-            if (!symbol.endsWith('USDT')) symbol += 'USDT';
-            if (!pinnedCoins.includes(symbol)) pinnedCoins.push(symbol);
+            let s = document.getElementById('coinSearch').value.toUpperCase().trim();
+            if (!s) return;
+            if (!s.endsWith('USDT')) s += 'USDT';
+            if (!pinnedCoins.includes(s)) {
+                pinnedCoins.push(s);
+                joinTime[s] = new Date().toLocaleTimeString('zh-TW', {hour12: false});
+            }
             document.getElementById('coinSearch').value = '';
             if (isRunning) updateData();
         }
 
-        function removeCoin(symbol) {
-            pinnedCoins = pinnedCoins.filter(c => c !== symbol);
-            delete coinHistory[symbol];
+        function removeCoin(s) {
+            pinnedCoins = pinnedCoins.filter(c => c !== s);
+            delete coinHistory[s];
+            delete joinTime[s];
             render();
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+            loggedCoins.clear();
+        }
+
+        function addLog(s, f, slope) {
+            const logContainer = document.getElementById('logContainer');
+            const time = new Date().toLocaleTimeString('zh-TW', {hour12: false});
+            const entry = document.createElement('div');
+            entry.className = "border-l-2 border-red-600 pl-2 py-1 bg-black mb-1";
+            entry.innerHTML = `
+                <div class="flex justify-between">
+                    <span class="font-bold text-white text-[14px]">${s.replace('USDT', '')}</span>
+                    <span class="text-zinc-500">${time}</span>
+                </div>
+                <div class="flex justify-between text-red-500">
+                    <span>資費: ${(f * 100).toFixed(4)}%</span>
+                    <span>斜率: ${(slope * 100).toFixed(1)}%</span>
+                </div>
+            `;
+            logContainer.prepend(entry);
         }
 
         async function updateData() {
@@ -89,18 +128,31 @@
                     const s = coin.symbol;
                     if (EXCLUDE_LIST.includes(s)) return;
                     const f = parseFloat(coin.lastFundingRate);
+                    
                     if (!coinHistory[s]) coinHistory[s] = [];
                     coinHistory[s].push(f);
-                    if (coinHistory[s].length > 10) coinHistory[s].shift();
-                    
-                    // 自動捕捉邏輯
-                    const slope = (f - coinHistory[s][0]) / Math.abs(coinHistory[s][0]);
-                    if (f <= -0.0003 && slope <= -0.5 && !pinnedCoins.includes(s)) {
-                        pinnedCoins.unshift(s);
+                    if (coinHistory[s].length > 75) coinHistory[s].shift();
+
+                    if (coinHistory[s].length >= 75) {
+                        const fPast = coinHistory[s][0];
+                        const slope = (f - fPast) / Math.abs(fPast);
+                        
+                        if (f <= -0.0003 && slope <= SLOPE_THRESHOLD) {
+                            if (!pinnedCoins.includes(s)) {
+                                pinnedCoins.unshift(s);
+                                joinTime[s] = new Date().toLocaleTimeString('zh-TW', {hour12: false});
+                            }
+                            // 如果是新發現或斜率大幅刷新，寫入日誌 (每小時每幣種最多記錄一次，避免洗版)
+                            const logKey = `${s}_${new Date().getHours()}`;
+                            if (!loggedCoins.has(logKey)) {
+                                addLog(s, f, slope);
+                                loggedCoins.add(logKey);
+                            }
+                        }
                     }
                 });
                 render(allData);
-            } catch (e) { console.error("API 連線失敗"); }
+            } catch (e) { console.error("API 請求失敗"); }
         }
 
         function render(allData = []) {
@@ -111,20 +163,29 @@
                 const fNow = data ? parseFloat(data.lastFundingRate) : 0;
                 const history = coinHistory[s] || [fNow];
                 const fPast = history[0];
-                const slope = (fNow - fPast) / Math.abs(fPast);
-                const isAmbush = fNow <= -0.0003 && slope <= -0.5;
+                const slope = history.length >= 75 ? (fNow - fPast) / Math.abs(fPast) : 0;
+                const isAmbush = fNow <= -0.0003 && slope <= SLOPE_THRESHOLD;
 
                 const card = document.createElement('div');
-                card.className = `p-6 bg-zinc-900 rounded-lg ${isAmbush ? 'ambush-card' : 'gold-border'}`;
+                card.className = `p-4 bg-zinc-900 rounded ${isAmbush ? 'ambush-card' : 'gold-border'}`;
                 card.innerHTML = `
                     <div class="flex justify-between items-start">
-                        <span class="font-bold ${isAmbush ? 'text-red-500' : 'text-gray-600'}">${isAmbush ? '⚡ 埋伏進場' : '監控中'}</span>
-                        <button onclick="removeCoin('${s}')" class="text-zinc-700 hover:text-white font-bold text-xl">✕</button>
+                        <span class="text-[10px] font-bold ${isAmbush ? 'text-red-500' : 'text-zinc-500'}">${isAmbush ? '⚡ 埋伏進場' : '監視中'}</span>
+                        <div class="text-right">
+                            <p class="text-[10px] text-zinc-500">上榜時刻</p>
+                            <p class="text-xs text-yellow-500 font-bold">${joinTime[s] || '--:--:--'}</p>
+                        </div>
                     </div>
-                    <h2 class="text-5xl font-black my-4 text-white">${s.replace('USDT', '')}</h2>
-                    <div class="space-y-2">
-                        <p class="text-xl">資費: <span class="${fNow < 0 ? 'text-red-500' : 'text-green-500'} font-bold">${(fNow * 100).toFixed(4)}%</span></p>
-                        <p class="text-sm">10m斜率: <span class="text-yellow-500">${(slope * 100).toFixed(1)}%</span></p>
+                    <div class="flex justify-between items-end mt-2">
+                        <h2 class="text-4xl font-black">${s.replace('USDT', '')}</h2>
+                        <div class="text-right">
+                            <p class="text-lg font-bold ${fNow < 0 ? 'text-red-500' : 'text-green-500'}">${(fNow * 100).toFixed(4)}%</p>
+                            <p class="text-[10px] text-zinc-400">斜率: ${(slope * 100).toFixed(1)}%</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-between">
+                        <span class="text-[9px] text-zinc-600 italic">Binance Futures Live</span>
+                        <button onclick="removeCoin('${s}')" class="text-[10px] text-zinc-500 hover:text-white underline">移除監控</button>
                     </div>
                 `;
                 container.appendChild(card);
