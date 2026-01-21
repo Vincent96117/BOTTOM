@@ -3,74 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNIPER AMBUSH V3.0 | 實戰定製版</title>
+    <title>SNIPER V3.1 | 結構校準</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; }
+        body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; overflow-x: hidden; }
         .gold-border { border: 1px solid #FFD700; }
-        .ambush-card { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-        .bg-zinc-900 { background-color: #111; }
-        .status-active { color: #00ff00; text-shadow: 0 0 10px #00ff00; }
-        .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
-        .pulse { animation: pulse-dot 1s infinite; }
-        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .ambush-card { border: 2px solid #ff0000; box-shadow: 0 0 15px #ff0000; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        #logContainer::-webkit-scrollbar { width: 4px; }
+        #logContainer::-webkit-scrollbar-thumb { background: #444; }
+        .status-on { color: #00ff00; text-shadow: 0 0 8px #00ff00; }
+        .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
     </style>
 </head>
-<body class="p-4">
-    <div class="border-b border-yellow-700 pb-4 mb-6">
-        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-4">
-                <h1 class="text-3xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.0</h1>
-                <button id="masterBtn" onclick="toggleSystem()" class="flex items-center bg-zinc-900 border gold-border px-6 py-2 rounded-full hover:bg-zinc-800">
-                    <span id="statusDot" class="dot bg-red-600"></span>
-                    <span id="statusText" class="text-red-500 font-bold uppercase">SYSTEM OFFLINE</span>
-                </button>
-            </div>
-            
-            <div class="flex gap-3">
-                <button onclick="testPush()" class="bg-blue-700 text-white px-4 py-2 font-bold rounded hover:bg-blue-600 transition">測試 PUSHOVER 推播</button>
-                <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-700 px-3 py-1 rounded">
-                    <span class="text-[10px] text-zinc-500">推播狀態:</span>
-                    <span id="pushStatus" class="text-[10px] text-green-500 font-bold italic font-mono">READY</span>
+<body class="h-screen flex flex-col">
+
+    <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-4">
+            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.1</h1>
+            <button onclick="toggleSystem()" class="bg-zinc-900 border border-zinc-700 px-4 py-1 rounded-full flex items-center">
+                <span id="statusDot" class="dot bg-red-600"></span>
+                <span id="statusText" class="text-red-500 text-xs font-bold uppercase">OFFLINE</span>
+            </button>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white border border-blue-700">測試推播</button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        
+        <main class="flex-1 p-4 overflow-y-auto bg-zinc-950">
+            <h2 class="text-sm font-bold mb-4 text-zinc-500 uppercase tracking-widest">📡 Live Monitor</h2>
+            <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 </div>
-            </div>
-        </div>
-    </div>
+        </main>
 
-    <div class="flex flex-col lg:flex-row gap-6">
-        <div class="flex-1">
-            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">📡 即時獵殺區 <span class="text-[10px] text-zinc-600 font-normal italic">(-20% 觀察 | -50%+OI 獵殺)</span></h2>
-            <div id="dashboard" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-        </div>
-
-        <div class="w-full lg:w-84">
-            <h2 class="text-xl font-bold mb-4 text-red-500 flex justify-between items-center">
-                📂 獵殺日誌 
-                <button onclick="clearLogs()" class="text-[10px] text-zinc-500 underline">清除紀錄</button>
-            </h2>
-            <div id="logContainer" class="bg-zinc-900 border border-zinc-800 p-2 h-[600px] overflow-y-auto text-[12px] space-y-2">
-                <div class="text-zinc-700 italic text-center py-10">等待訊號觸發...</div>
+        <aside class="w-80 border-l border-yellow-900 bg-black flex flex-col">
+            <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
+                <h2 class="font-bold text-red-500 text-sm">📂 獵殺日誌</h2>
+                <button onclick="clearLogs()" class="text-[10px] text-zinc-600 underline">清除</button>
             </div>
-        </div>
+            <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-2">
+                </div>
+        </aside>
     </div>
 
     <script>
-        // 你的專屬配置 (已填入記憶資訊)
         const CONFIG = {
             PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4",
             PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw",
             EXCLUDE: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'],
-            OBSERVE_SLOPE: -0.2, // 20% 進入觀察
-            HUNT_SLOPE: -0.5,    // 50% 啟動獵殺
-            INTERVAL: 8000       // 8秒頻率
+            OBSERVE_SLOPE: -0.2, // -20% 觀察
+            HUNT_SLOPE: -0.5     // -50% 獵殺
         };
 
         let pinnedCoins = [];
         let coinHistory = {};
         let oiHistory = {}; 
         let joinTime = {};
-        let lastPushTime = {}; // 用於推播冷卻
+        let lastPushTime = {}; 
         let isRunning = false;
         let timer = null;
 
@@ -79,15 +71,15 @@
             const dot = document.getElementById('statusDot');
             const text = document.getElementById('statusText');
             if (isRunning) {
-                dot.className = "dot bg-green-500 pulse";
-                text.innerText = "SYSTEM ONLINE (8s)";
-                text.className = "text-green-500 font-bold uppercase";
+                dot.className = "dot bg-green-500 shadow-[0_0_8px_#00ff00]";
+                text.innerText = "ONLINE (8s)";
+                text.className = "status-on text-xs font-bold uppercase";
                 updateData();
-                timer = setInterval(updateData, CONFIG.INTERVAL);
+                timer = setInterval(updateData, 8000);
             } else {
                 dot.className = "dot bg-red-600";
-                text.innerText = "SYSTEM OFFLINE";
-                text.className = "text-red-500 font-bold uppercase";
+                text.innerText = "OFFLINE";
+                text.className = "text-red-500 text-xs font-bold uppercase";
                 clearInterval(timer);
             }
         }
@@ -99,12 +91,12 @@
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: `token=${CONFIG.PO_TOKEN}&user=${CONFIG.PO_USER}&title=${encodeURIComponent(title)}&message=${encodeURIComponent(message)}&priority=1`
                 });
-            } catch(e) { console.error("Pushover 失敗", e); }
+            } catch(e) { console.error("Push Error", e); }
         }
 
         async function testPush() {
-            await sendPush("Sniper V3.0 測試", "這是一則測試通知，代表推播配置正確！");
-            alert("測試指令已發送！");
+            await sendPush("Sniper V3.1 測試", "版型校準完成，系統已就緒！");
+            alert("測試發送成功！");
         }
 
         async function getOI(symbol) {
@@ -134,27 +126,22 @@
                         const fPast = coinHistory[s][0];
                         const slope = (fNow - fPast) / Math.abs(fPast);
                         
-                        // 1. 進入觀察條件 (-20% 斜率)
                         if (fNow <= -0.0003 && slope <= CONFIG.OBSERVE_SLOPE) {
                             if (!pinnedCoins.includes(s)) {
                                 pinnedCoins.unshift(s);
                                 joinTime[s] = new Date().toLocaleTimeString('zh-TW', {hour12: false});
                             }
 
-                            // 2. 單一幣種 OI 掃描
                             const currentOI = await getOI(s);
                             if (currentOI) {
                                 const oldOI = oiHistory[s] || currentOI;
                                 const oiChange = (currentOI - oldOI) / oldOI;
                                 
-                                // 3. 獵殺觸發 (-50% 斜率 + OI 增加)
                                 if (slope <= CONFIG.HUNT_SLOPE && currentOI > oldOI) {
                                     const now = Date.now();
-                                    // 冷卻機制：同一個幣 30 分鐘內只推播一次
                                     if (!lastPushTime[s] || (now - lastPushTime[s] > 1800000)) {
-                                        sendPush(`🔥 超級埋伏: ${s.replace('USDT','')}`, 
-                                            `資費: ${(fNow*100).toFixed(4)}%\n斜率: ${(slope*100).toFixed(1)}%\nOI 增加: ${(oiChange*100).toFixed(2)}%`);
-                                        addLog(s, fNow, slope, oiChange, true);
+                                        sendPush(`🔥獵殺: ${s.replace('USDT','')}`, `資費: ${(fNow*100).toFixed(4)}%\n斜率: ${(slope*100).toFixed(1)}%\nOI 增加`);
+                                        addLog(s, fNow, slope, oiChange);
                                         lastPushTime[s] = now;
                                     }
                                 }
@@ -164,37 +151,28 @@
                     }
                 }
                 render(allData);
-            } catch (e) { console.error("數據更新出錯", e); }
+            } catch (e) { console.error("Update Error", e); }
         }
 
-        function addLog(s, f, slope, oiChange, isSuper) {
+        function getTP(slope) {
+            if (slope <= -1.0) return "🚀 止盈建議: 15%~無上限 (移動止損)";
+            if (slope <= -0.5) return "🎯 止盈建議: 8% ~ 12%";
+            return "Scalp: 3% ~ 5%";
+        }
+
+        function addLog(s, f, slope, oiChange) {
             const container = document.getElementById('logContainer');
-            if (container.innerText.includes("等待訊號")) container.innerHTML = '';
             const entry = document.createElement('div');
-            entry.className = `p-3 mb-2 rounded border-l-4 ${isSuper ? 'bg-red-950 border-red-500' : 'bg-zinc-800 border-zinc-500'}`;
+            entry.className = "p-3 bg-zinc-900 border-l-4 border-red-600 mb-2";
             entry.innerHTML = `
-                <div class="flex justify-between items-center mb-1">
-                    <span class="font-black text-white text-base">${s.replace('USDT','')}</span>
-                    <span class="text-zinc-500 text-[10px]">${new Date().toLocaleTimeString()}</span>
+                <div class="flex justify-between text-white font-bold mb-1">
+                    <span>${s.replace('USDT','')}</span>
+                    <span class="text-[10px] text-zinc-500">${new Date().toLocaleTimeString()}</span>
                 </div>
-                <div class="flex justify-between text-[11px]">
-                    <span class="text-red-400">資費: ${(f*100).toFixed(4)}%</span>
-                    <span class="text-yellow-500">斜率: ${(slope*100).toFixed(1)}%</span>
-                </div>
-                <div class="text-[10px] text-green-500 mt-1">OI 變動: +${(oiChange*100).toFixed(2)}% (🔥已發送推播)</div>
+                <div class="text-[10px] text-red-400">斜率: ${(slope*100).toFixed(1)}% | OI: +${(oiChange*100).toFixed(2)}%</div>
+                <div class="text-[10px] text-yellow-500 mt-1 font-bold italic">${getTP(slope)}</div>
             `;
             container.prepend(entry);
-        }
-
-        function clearLogs() {
-            document.getElementById('logContainer').innerHTML = '<div class="text-zinc-700 italic text-center py-10">日誌已清空</div>';
-            lastPushTime = {};
-        }
-
-        function removeCoin(s) {
-            pinnedCoins = pinnedCoins.filter(c => c !== s);
-            delete coinHistory[s];
-            render();
         }
 
         function render(allData = []) {
@@ -203,30 +181,39 @@
             pinnedCoins.forEach(s => {
                 const data = allData.find(c => c.symbol === s);
                 const fNow = data ? parseFloat(data.lastFundingRate) : 0;
-                const history = coinHistory[s] || [fNow];
-                const slope = history.length >= 75 ? (fNow - history[0]) / Math.abs(history[0]) : 0;
+                const slope = coinHistory[s].length >= 75 ? (fNow - coinHistory[s][0]) / Math.abs(coinHistory[s][0]) : 0;
                 const isHunt = slope <= CONFIG.HUNT_SLOPE;
 
                 const card = document.createElement('div');
-                card.className = `p-4 bg-zinc-900 rounded-lg relative overflow-hidden ${isHunt ? 'ambush-card' : 'gold-border'}`;
+                card.className = `p-4 bg-zinc-900 rounded ${isHunt ? 'ambush-card' : 'gold-border'}`;
                 card.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <span class="text-[10px] px-2 py-0.5 rounded ${isHunt ? 'bg-red-700 text-white' : 'bg-zinc-800 text-zinc-400'}">
-                            ${isHunt ? '⚡ 獵殺模式' : '📡 觀察中'}
-                        </span>
-                        <span class="text-[10px] text-zinc-600">上榜: ${joinTime[s]}</span>
+                    <div class="flex justify-between items-center text-[9px] mb-2 uppercase tracking-widest font-bold">
+                        <span class="${isHunt ? 'text-red-500' : 'text-zinc-500'}">${isHunt ? '!! HUNTING !!' : 'Observing'}</span>
+                        <span class="text-zinc-600">${joinTime[s]}</span>
                     </div>
-                    <div class="flex justify-between items-center mt-3">
-                        <h2 class="text-5xl font-black text-white tracking-tighter">${s.replace('USDT','')}</h2>
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-4xl font-black text-white">${s.replace('USDT','')}</h2>
                         <div class="text-right">
-                            <p class="text-2xl font-bold ${fNow < 0 ? 'text-red-500' : 'text-green-500'}">${(fNow * 100).toFixed(4)}%</p>
-                            <p class="text-xs text-yellow-600 font-bold">斜率: ${(slope * 100).toFixed(1)}%</p>
+                            <p class="text-lg font-bold text-red-500">${(fNow * 100).toFixed(4)}%</p>
+                            <p class="text-[10px] text-yellow-600 font-bold">SLOPE: ${(slope * 100).toFixed(1)}%</p>
                         </div>
                     </div>
-                    <button onclick="removeCoin('${s}')" class="absolute bottom-1 right-2 text-[9px] text-zinc-700 hover:text-white uppercase tracking-widest">Remove</button>
+                    <div class="mt-2 text-[9px] text-zinc-700 italic border-t border-zinc-800 pt-2 flex justify-between">
+                        <span>BINANCE FUTURES</span>
+                        <button onclick="removeCoin('${s}')" class="underline hover:text-white">REMOVE</button>
+                    </div>
                 `;
                 container.appendChild(card);
             });
+        }
+
+        function removeCoin(s) {
+            pinnedCoins = pinnedCoins.filter(c => c !== s);
+            render();
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
         }
     </script>
 </body>
