@@ -1,202 +1,233 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-    <title>10分斜率獵殺 V3.7 - 終極版</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SNIPER AMBUSH V3.0 | 實戰定製版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #111; color: #eee; font-family: sans-serif; margin: 20px; font-size: 14px; }
-        .dashboard { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; background: #222; padding: 15px; border-radius: 8px; border: 1px solid #444; flex-wrap: wrap; }
-        .search-box { padding: 8px; border-radius: 4px; border: 1px solid #555; background: #333; color: white; width: 200px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-        th, td { padding: 10px; border: 1px solid #333; text-align: left; }
-        th { background: #2a2a2a; }
-        .READY { color: #ffeb3b; font-weight: bold; background: rgba(255, 235, 59, 0.1); }
-        .ENTRY { color: #fff; background: #ff0000; font-weight: bold; animation: pulse 0.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        button { padding: 6px 12px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
-        .btn-del { background: #444; color: #ff4444; }
-        .log-container { background: #1a1a1a; border: 1px solid #444; padding: 15px; border-radius: 8px; max-height: 300px; overflow-y: auto; }
-        .log-item { border-bottom: 1px solid #333; padding: 5px 0; font-family: monospace; font-size: 12px; }
-        #status { margin-left: auto; color: #00ffff; }
+        body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; }
+        .gold-border { border: 1px solid #FFD700; }
+        .ambush-card { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .bg-zinc-900 { background-color: #111; }
+        .status-active { color: #00ff00; text-shadow: 0 0 10px #00ff00; }
+        .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+        .pulse { animation: pulse-dot 1s infinite; }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
     </style>
 </head>
-<body>
-
-    <div class="dashboard">
-        <div style="font-size: 18px; font-weight: bold; color: #ffeb3b;">10分斜率獵殺 V3.7</div>
-        <input type="text" id="searchInput" class="search-box" placeholder="🔍 搜尋標的..." oninput="render()">
-        <button style="background: #d32f2f; color: white;" onclick="toggleSystem()" id="startBtn">🚀 啟動監控</button>
-        <button style="background: #0088cc; color: white;" onclick="testPush()">🧪 測試群組推播</button>
-        <div id="status">系統就緒 (8s/次)</div>
+<body class="p-4">
+    <div class="border-b border-yellow-700 pb-4 mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <h1 class="text-3xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.0</h1>
+                <button id="masterBtn" onclick="toggleSystem()" class="flex items-center bg-zinc-900 border gold-border px-6 py-2 rounded-full hover:bg-zinc-800">
+                    <span id="statusDot" class="dot bg-red-600"></span>
+                    <span id="statusText" class="text-red-500 font-bold uppercase">SYSTEM OFFLINE</span>
+                </button>
+            </div>
+            
+            <div class="flex gap-3">
+                <button onclick="testPush()" class="bg-blue-700 text-white px-4 py-2 font-bold rounded hover:bg-blue-600 transition">測試 PUSHOVER 推播</button>
+                <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-700 px-3 py-1 rounded">
+                    <span class="text-[10px] text-zinc-500">推播狀態:</span>
+                    <span id="pushStatus" class="text-[10px] text-green-500 font-bold italic font-mono">READY</span>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <h3 style="color: #00ffff;">📍 當前獵殺清單</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>標的</th>
-                <th>上榜時間</th>
-                <th>當前資費 (10分變動)</th>
-                <th>10分前</th>
-                <th>OI 變動%</th>
-                <th>狀態</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody id="radarBody"></tbody>
-    </table>
+    <div class="flex flex-col lg:flex-row gap-6">
+        <div class="flex-1">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">📡 即時獵殺區 <span class="text-[10px] text-zinc-600 font-normal italic">(-20% 觀察 | -50%+OI 獵殺)</span></h2>
+            <div id="dashboard" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
 
-    <h3 style="color: #ffeb3b;">📜 獵殺日誌 (推播歷史)</h3>
-    <div class="log-container" id="huntLog">
-        <div class="log-item">系統等待啟動...</div>
+        <div class="w-full lg:w-84">
+            <h2 class="text-xl font-bold mb-4 text-red-500 flex justify-between items-center">
+                📂 獵殺日誌 
+                <button onclick="clearLogs()" class="text-[10px] text-zinc-500 underline">清除紀錄</button>
+            </h2>
+            <div id="logContainer" class="bg-zinc-900 border border-zinc-800 p-2 h-[600px] overflow-y-auto text-[12px] space-y-2">
+                <div class="text-zinc-700 italic text-center py-10">等待訊號觸發...</div>
+            </div>
+        </div>
     </div>
 
-<script>
-    const CONFIG = {
-        PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", 
-        PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw", 
-        BLACKLIST: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'],
-        MIN_FUND: 0.0005 
-    };
+    <script>
+        // 你的專屬配置 (已填入記憶資訊)
+        const CONFIG = {
+            PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4",
+            PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw",
+            EXCLUDE: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'],
+            OBSERVE_SLOPE: -0.2, // 20% 進入觀察
+            HUNT_SLOPE: -0.5,    // 50% 啟動獵殺
+            INTERVAL: 8000       // 8秒頻率
+        };
 
-    let isRunning = false;
-    let historyData = {}; 
-    let allData = {};
-    let huntLogs = [];
+        let pinnedCoins = [];
+        let coinHistory = {};
+        let oiHistory = {}; 
+        let joinTime = {};
+        let lastPushTime = {}; // 用於推播冷卻
+        let isRunning = false;
+        let timer = null;
 
-    async function sendPush(title, message) {
-        const params = new URLSearchParams();
-        params.append("token", CONFIG.PO_TOKEN);
-        params.append("user", CONFIG.PO_USER);
-        params.append("title", title);
-        params.append("message", message);
-        params.append("priority", "1");
-        params.append("sound", "alien");
-        try {
-            await fetch('https://api.pushover.net/1/messages.json', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: params.toString()
-            });
-            addLog(`🚀 推播成功: ${title}`);
-        } catch (e) { console.error("Push Error", e); }
-    }
+        function toggleSystem() {
+            isRunning = !isRunning;
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            if (isRunning) {
+                dot.className = "dot bg-green-500 pulse";
+                text.innerText = "SYSTEM ONLINE (8s)";
+                text.className = "text-green-500 font-bold uppercase";
+                updateData();
+                timer = setInterval(updateData, CONFIG.INTERVAL);
+            } else {
+                dot.className = "dot bg-red-600";
+                text.innerText = "SYSTEM OFFLINE";
+                text.className = "text-red-500 font-bold uppercase";
+                clearInterval(timer);
+            }
+        }
 
-    function addLog(msg) {
-        const time = new Date().toLocaleTimeString();
-        huntLogs.unshift(`[${time}] ${msg}`);
-        if (huntLogs.length > 50) huntLogs.pop();
-        const logDiv = document.getElementById('huntLog');
-        logDiv.innerHTML = huntLogs.map(l => `<div class="log-item">${l}</div>`).join('');
-    }
+        async function sendPush(title, message) {
+            try {
+                await fetch('https://api.pushover.net/1/messages.json', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `token=${CONFIG.PO_TOKEN}&user=${CONFIG.PO_USER}&title=${encodeURIComponent(title)}&message=${encodeURIComponent(message)}&priority=1`
+                });
+            } catch(e) { console.error("Pushover 失敗", e); }
+        }
 
-    function testPush() { sendPush("連線測試", "終極儀表板 V3.7 連線正常！"); alert("測試發送中..."); }
+        async function testPush() {
+            await sendPush("Sniper V3.0 測試", "這是一則測試通知，代表推播配置正確！");
+            alert("測試指令已發送！");
+        }
 
-    function removeSymbol(symbol) {
-        delete allData[symbol];
-        delete historyData[symbol];
-        render();
-    }
+        async function getOI(symbol) {
+            try {
+                const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`);
+                const data = await res.json();
+                return parseFloat(data.openInterest);
+            } catch(e) { return null; }
+        }
 
-    async function getOI(symbol) {
-        try {
-            const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`);
-            const data = await res.json();
-            return parseFloat(data.openInterest);
-        } catch (e) { return null; }
-    }
-
-    async function mainLoop() {
-        if (!isRunning) return;
-        try {
-            const res = await fetch('https://fapi.binance.com/fapi/v1/premiumIndex');
-            const funds = await res.json();
-            const now = Date.now();
-
-            for (const f of funds) {
-                const symbol = f.symbol;
-                if (!symbol.endsWith('USDT') || CONFIG.BLACKLIST.includes(symbol)) continue;
-
-                const currentFund = parseFloat(f.lastFundingRate);
+        async function updateData() {
+            if (!isRunning) return;
+            try {
+                const res = await fetch('https://fapi.binance.com/fapi/v1/premiumIndex');
+                const allData = await res.json();
                 
-                // 只有資費達標或已在表上的才抓 OI
-                if (Math.abs(currentFund) < CONFIG.MIN_FUND && !allData[symbol]) continue;
+                for (const coin of allData) {
+                    const s = coin.symbol;
+                    if (CONFIG.EXCLUDE.includes(s)) continue;
+                    const fNow = parseFloat(coin.lastFundingRate);
+                    
+                    if (!coinHistory[s]) coinHistory[s] = [];
+                    coinHistory[s].push(fNow);
+                    if (coinHistory[s].length > 75) coinHistory[s].shift();
 
-                const currentOI = await getOI(symbol);
-                if (currentOI === null) continue;
+                    if (coinHistory[s].length >= 75) {
+                        const fPast = coinHistory[s][0];
+                        const slope = (fNow - fPast) / Math.abs(fPast);
+                        
+                        // 1. 進入觀察條件 (-20% 斜率)
+                        if (fNow <= -0.0003 && slope <= CONFIG.OBSERVE_SLOPE) {
+                            if (!pinnedCoins.includes(s)) {
+                                pinnedCoins.unshift(s);
+                                joinTime[s] = new Date().toLocaleTimeString('zh-TW', {hour12: false});
+                            }
 
-                if (!historyData[symbol]) {
-                    historyData[symbol] = [];
-                    allData[symbol] = { firstSeen: new Date().toLocaleTimeString() };
-                }
-                historyData[symbol].push({ time: now, fund: currentFund, oi: currentOI });
-                historyData[symbol] = historyData[symbol].filter(h => now - h.time <= 600000);
-
-                const baseData = historyData[symbol][0];
-                const prevFund = baseData.fund;
-                const prevOI = baseData.oi;
-
-                const fundChange = prevFund !== 0 ? ((currentFund - prevFund) / Math.abs(prevFund)) * 100 : 0;
-                const oiChange = prevOI !== 0 ? ((currentOI - prevOI) / prevOI) * 100 : 0;
-
-                let st = "NORMAL";
-                let oldStatus = allData[symbol].st || "NORMAL";
-
-                if (Math.abs(currentFund) >= CONFIG.MIN_FUND) {
-                    if (Math.abs(fundChange) >= 30) {
-                        st = "READY";
-                        if (Math.abs(fundChange) >= 50 && oiChange > 0) {
-                            st = "ENTRY";
-                            if (oldStatus !== "ENTRY") {
-                                sendPush(`🎯 獵殺信號: ${symbol}`, `斜率:${fundChange.toFixed(1)}% | OI:${oiChange.toFixed(2)}%`);
-                                addLog(`🔥 ENTRY觸發: ${symbol} (斜率${fundChange.toFixed(1)}%)`);
+                            // 2. 單一幣種 OI 掃描
+                            const currentOI = await getOI(s);
+                            if (currentOI) {
+                                const oldOI = oiHistory[s] || currentOI;
+                                const oiChange = (currentOI - oldOI) / oldOI;
+                                
+                                // 3. 獵殺觸發 (-50% 斜率 + OI 增加)
+                                if (slope <= CONFIG.HUNT_SLOPE && currentOI > oldOI) {
+                                    const now = Date.now();
+                                    // 冷卻機制：同一個幣 30 分鐘內只推播一次
+                                    if (!lastPushTime[s] || (now - lastPushTime[s] > 1800000)) {
+                                        sendPush(`🔥 超級埋伏: ${s.replace('USDT','')}`, 
+                                            `資費: ${(fNow*100).toFixed(4)}%\n斜率: ${(slope*100).toFixed(1)}%\nOI 增加: ${(oiChange*100).toFixed(2)}%`);
+                                        addLog(s, fNow, slope, oiChange, true);
+                                        lastPushTime[s] = now;
+                                    }
+                                }
+                                oiHistory[s] = currentOI;
                             }
                         }
                     }
                 }
+                render(allData);
+            } catch (e) { console.error("數據更新出錯", e); }
+        }
 
-                allData[symbol] = {
-                    ...allData[symbol],
-                    symbol,
-                    currentFund: (currentFund * 100).toFixed(4),
-                    fundChange: fundChange.toFixed(1),
-                    prevFund: (prevFund * 100).toFixed(4),
-                    oiChange: oiChange.toFixed(2),
-                    st
-                };
-            }
+        function addLog(s, f, slope, oiChange, isSuper) {
+            const container = document.getElementById('logContainer');
+            if (container.innerText.includes("等待訊號")) container.innerHTML = '';
+            const entry = document.createElement('div');
+            entry.className = `p-3 mb-2 rounded border-l-4 ${isSuper ? 'bg-red-950 border-red-500' : 'bg-zinc-800 border-zinc-500'}`;
+            entry.innerHTML = `
+                <div class="flex justify-between items-center mb-1">
+                    <span class="font-black text-white text-base">${s.replace('USDT','')}</span>
+                    <span class="text-zinc-500 text-[10px]">${new Date().toLocaleTimeString()}</span>
+                </div>
+                <div class="flex justify-between text-[11px]">
+                    <span class="text-red-400">資費: ${(f*100).toFixed(4)}%</span>
+                    <span class="text-yellow-500">斜率: ${(slope*100).toFixed(1)}%</span>
+                </div>
+                <div class="text-[10px] text-green-500 mt-1">OI 變動: +${(oiChange*100).toFixed(2)}% (🔥已發送推播)</div>
+            `;
+            container.prepend(entry);
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '<div class="text-zinc-700 italic text-center py-10">日誌已清空</div>';
+            lastPushTime = {};
+        }
+
+        function removeCoin(s) {
+            pinnedCoins = pinnedCoins.filter(c => c !== s);
+            delete coinHistory[s];
             render();
-            document.getElementById('status').innerText = "✅ 8秒掃描中";
-        } catch (e) { console.error(e); }
-    }
+        }
 
-    function render() {
-        const keyword = document.getElementById('searchInput').value.toUpperCase();
-        const rows = Object.values(allData).filter(d => d.symbol && d.symbol.includes(keyword));
-        
-        const sorted = rows.sort((a, b) => {
-            if (a.st === "ENTRY" && b.st !== "ENTRY") return -1;
-            if (b.st === "ENTRY" && a.st !== "ENTRY") return 1;
-            return Math.abs(b.fundChange) - Math.abs(a.fundChange);
-        });
+        function render(allData = []) {
+            const container = document.getElementById('dashboard');
+            container.innerHTML = '';
+            pinnedCoins.forEach(s => {
+                const data = allData.find(c => c.symbol === s);
+                const fNow = data ? parseFloat(data.lastFundingRate) : 0;
+                const history = coinHistory[s] || [fNow];
+                const slope = history.length >= 75 ? (fNow - history[0]) / Math.abs(history[0]) : 0;
+                const isHunt = slope <= CONFIG.HUNT_SLOPE;
 
-        document.getElementById('radarBody').innerHTML = sorted.map(c => `
-            <tr>
-                <td><b>${c.symbol}</b></td>
-                <td>${c.firstSeen}</td>
-                <td style="color:${c.currentFund < 0 ? '#ff4444' : '#00ff00'}">${c.currentFund}% (${c.fundChange}%)</td>
-                <td>${c.prevFund}%</td>
-                <td style="color:${c.oiChange > 0 ? '#00ff00' : '#ff4444'}">${c.oiChange}%</td>
-                <td class="${c.st}">${c.st}</td>
-                <td><button class="btn-del" onclick="removeSymbol('${c.symbol}')">刪除</button></td>
-            </tr>
-        `).join('');
-    }
-
-    function toggleSystem() {
-        isRunning = !isRunning;
-        document.getElementById('startBtn').innerText = isRunning ? "🛑 停止" : "🚀 啟動";
-        if (isRunning) { addLog("系統啟動..."); mainLoop(); setInterval(mainLoop, 8000); }
-    }
-</script>
+                const card = document.createElement('div');
+                card.className = `p-4 bg-zinc-900 rounded-lg relative overflow-hidden ${isHunt ? 'ambush-card' : 'gold-border'}`;
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <span class="text-[10px] px-2 py-0.5 rounded ${isHunt ? 'bg-red-700 text-white' : 'bg-zinc-800 text-zinc-400'}">
+                            ${isHunt ? '⚡ 獵殺模式' : '📡 觀察中'}
+                        </span>
+                        <span class="text-[10px] text-zinc-600">上榜: ${joinTime[s]}</span>
+                    </div>
+                    <div class="flex justify-between items-center mt-3">
+                        <h2 class="text-5xl font-black text-white tracking-tighter">${s.replace('USDT','')}</h2>
+                        <div class="text-right">
+                            <p class="text-2xl font-bold ${fNow < 0 ? 'text-red-500' : 'text-green-500'}">${(fNow * 100).toFixed(4)}%</p>
+                            <p class="text-xs text-yellow-600 font-bold">斜率: ${(slope * 100).toFixed(1)}%</p>
+                        </div>
+                    </div>
+                    <button onclick="removeCoin('${s}')" class="absolute bottom-1 right-2 text-[9px] text-zinc-700 hover:text-white uppercase tracking-widest">Remove</button>
+                `;
+                container.appendChild(card);
+            });
+        }
+    </script>
 </body>
 </html>
