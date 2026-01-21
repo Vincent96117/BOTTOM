@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNIPER V3.1 | 獵殺校準版</title>
+    <title>SNIPER V3.1 | 終極校準</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; overflow-x: hidden; }
@@ -27,13 +27,13 @@
             </button>
         </div>
         <div class="flex gap-2">
-            <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white border border-blue-700 font-bold">🧪 測試群組同步</button>
+            <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white border border-blue-700 font-bold">🧪 測試三人同步</button>
         </div>
     </header>
 
     <div class="flex flex-1 overflow-hidden">
         <main class="flex-1 p-4 overflow-y-auto bg-zinc-950">
-            <h2 class="text-sm font-bold mb-4 text-zinc-500 uppercase tracking-widest">📡 Live Monitor (動能對比: 2% / 斜率: 40%)</h2>
+            <h2 class="text-sm font-bold mb-4 text-zinc-500 uppercase tracking-widest">📡 Live Monitor (MOM: 2% / SLOPE: 40%)</h2>
             <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div>
         </main>
 
@@ -48,16 +48,16 @@
 
 <script>
     const CONFIG = {
-        PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", // 群組金鑰已鎖定
+        PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", 
         PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw",
         EXCLUDE: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'],
-        OBSERVE_SLOPE: -0.15, // 斜率 -15% 進入觀察
-        HUNT_SLOPE: -0.4,    // 🏮 哥要求的斜率 40% (惡化速度)
-        OI_MOMENTUM: 0.02    // 🏮 哥要求的動能 +2% (對比上榜時)
+        OBSERVE_SLOPE: -0.15, // 斜率 -15% 上榜
+        HUNT_SLOPE: -0.4,    // 🏮 核心：斜率 40%
+        OI_MOMENTUM: 0.02    // 🏮 核心：動能 2%
     };
 
-    let pinnedCoins = [], coinHistory = {}, baseOI = {}, joinTime = {}, lastPushTime = {}; 
-    let isRunning = false, timer = null, oiHistory = {};
+    let pinnedCoins = [], coinHistory = {}, baseOI = {}, joinTime = {}, lastPushTime = {}, oiHistory = {}; 
+    let isRunning = false, timer = null;
 
     function toggleSystem() {
         isRunning = !isRunning;
@@ -84,6 +84,7 @@
         params.append("title", title);
         params.append("message", message);
         params.append("priority", "1");
+        params.append("sound", "classical");
         try {
             await fetch('https://api.pushover.net/1/messages.json', {
                 method: 'POST',
@@ -94,8 +95,8 @@
     }
 
     async function testPush() {
-        await sendPush("Sniper V3.1 靈敏版測試", "動能+2%/斜率40% 設定完成，群組通訊正常！");
-        alert("測試發送中...");
+        await sendPush("Sniper V3.1 測試", "三位戰友請注意，群組連線成功！");
+        alert("測試請求已發出，請確認三台手機...");
     }
 
     async function getOI(symbol) {
@@ -125,7 +126,6 @@
                     const fPast = coinHistory[s][0];
                     const slope = (fNow - fPast) / Math.abs(fPast);
                     
-                    // 滿足觀察門檻
                     if (fNow <= -0.0003 && slope <= CONFIG.OBSERVE_SLOPE) {
                         if (!pinnedCoins.includes(s)) {
                             pinnedCoins.unshift(s);
@@ -138,12 +138,14 @@
                         if (currentOI && baseOI[s]) {
                             const totalGrowth = (currentOI - baseOI[s]) / baseOI[s];
                             
-                            // 🏮 核心判斷：斜率 40% + 動能 2%
+                            // 🏮 獵殺判定：40% 斜率 + 2% 動能
                             if (slope <= CONFIG.HUNT_SLOPE && totalGrowth >= CONFIG.OI_MOMENTUM) {
                                 const now = Date.now();
                                 if (!lastPushTime[s] || (now - lastPushTime[s] > 1800000)) {
-                                    sendPush(`🔥獵殺: ${s.replace('USDT','')}`, `資費: ${(fNow*100).toFixed(4)}%\n動能: +${(totalGrowth*100).toFixed(1)}%\n斜率: ${(slope*100).toFixed(1)}%`);
+                                    // 關鍵：先寫日誌，保證 UI 一定有反應
                                     addLog(s, fNow, slope, totalGrowth);
+                                    // 後發推播
+                                    sendPush(`🔥獵殺: ${s.replace('USDT','')}`, `資費: ${(fNow*100).toFixed(4)}%\n動能: +${(totalGrowth*100).toFixed(1)}%\n斜率: ${(slope*100).toFixed(1)}%`);
                                     lastPushTime[s] = now;
                                 }
                             }
@@ -166,7 +168,7 @@
                 <span class="text-[10px] text-zinc-500">${new Date().toLocaleTimeString()}</span>
             </div>
             <div class="text-[10px] text-red-400">動能: +${(growth*100).toFixed(1)}% | 斜率: ${(slope*100).toFixed(1)}%</div>
-            <div class="text-[10px] text-yellow-500 mt-1 font-bold italic">🎯 獵殺啟動</div>
+            <div class="text-[10px] text-yellow-500 mt-1 font-bold italic">🎯 行情發動</div>
         `;
         container.prepend(entry);
     }
@@ -196,7 +198,7 @@
                     </div>
                 </div>
                 <div class="mt-2 text-[9px] text-zinc-700 italic border-t border-zinc-800 pt-2 flex justify-between">
-                    <span>SNIPER MODE</span>
+                    <span>SNIPER V3.1</span>
                     <button onclick="removeCoin('${s}')" class="underline hover:text-white">REMOVE</button>
                 </div>
             `;
