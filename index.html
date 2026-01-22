@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNIPER V3.2.1 | 5S 階梯加速版</title>
+    <title>SNIPER V3.2.1 | 5S 極限獵殺</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; overflow-x: hidden; }
@@ -27,7 +27,11 @@
                 <span id="statusText" class="text-red-500 text-xs font-bold uppercase">OFFLINE</span>
             </button>
         </div>
-        <div class="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Frequency: 5s | Sampling: 45pts</div>
+        
+        <div class="flex gap-2">
+            <button onclick="testPush()" class="text-[10px] bg-blue-900 hover:bg-blue-800 px-3 py-1 rounded text-white border border-blue-700 font-bold transition-all">🧪 測試三人同步</button>
+            <button onclick="clearAllCoins()" class="text-[10px] bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded text-zinc-400 border border-zinc-600 font-bold transition-all">🗑️ 全部清除</button>
+        </div>
     </header>
 
     <div class="flex flex-1 overflow-hidden">
@@ -37,8 +41,8 @@
 
         <aside class="w-80 border-l border-yellow-900 bg-black flex flex-col">
             <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
-                <h2 class="font-bold text-red-500 text-sm">📂 實戰日誌 (階梯模式)</h2>
-                <button onclick="clearLogs()" class="text-[10px] text-zinc-600 underline">清除</button>
+                <h2 class="font-bold text-red-500 text-sm">📂 戰鬥日誌</h2>
+                <button onclick="clearLogs()" class="text-[10px] text-zinc-600 underline">清除日誌</button>
             </div>
             <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
         </aside>
@@ -49,11 +53,9 @@
         PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", 
         PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw",
         EXCLUDE: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'],
-        SAMPLE_SIZE: 45,      // 5秒一次，取45次約等於3.7分鐘窗口
-        // 第一階：預警 (搶先卡位)
+        SAMPLE_SIZE: 45,      
         PRE_SLOPE: -0.25,     
         PRE_MOM: 0.008,       
-        // 第二階：獵殺 (確定動能)
         HUNT_SLOPE: -0.4,     
         HUNT_MOM: 0.02        
     };
@@ -70,12 +72,31 @@
             text.innerText = "ONLINE (5S)";
             text.className = "status-on text-xs font-bold uppercase";
             updateData();
-            timer = setInterval(updateData, 5000); // 🏮 鎖定 5 秒頻率
+            timer = setInterval(updateData, 5000); 
         } else {
             dot.className = "dot bg-red-600";
             text.innerText = "OFFLINE";
             text.className = "text-red-500 text-xs font-bold uppercase";
             clearInterval(timer);
+        }
+    }
+
+    // 🏮 修正後的推播測試按鈕功能
+    async function testPush() {
+        const title = "Sniper V3.2.1 連線測試";
+        const message = "報告哥！三人的 Pushover 通訊管道已打通，系統掃描頻率 5 秒/次。";
+        await sendPush(title, message, 0);
+        alert("測試發送中，請確認三位戰友的手機響聲！");
+    }
+
+    // 🏮 全部刪除按鈕功能
+    function clearAllCoins() {
+        if(confirm("確定要清空目前儀表板上的所有標的嗎？")) {
+            pinnedCoins = [];
+            coinHistory = {};
+            baseOI = {};
+            oiHistory = {};
+            render();
         }
     }
 
@@ -93,12 +114,11 @@
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: params.toString()
             });
-        } catch(e) {}
+        } catch(e) { console.error("Push failed", e); }
     }
 
     async function getOI(symbol) {
         try {
-            // 微秒級延遲防止 API 撞牆
             await new Promise(r => setTimeout(r, Math.random() * 150));
             const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`);
             const data = await res.json();
@@ -144,9 +164,9 @@
 
                             if (level > 0) {
                                 const pushKey = `${s}_${level}`;
-                                if (!lastPushTime[pushKey] || (now - lastPushTime[pushKey] > 900000)) { // 15分冷卻
+                                if (!lastPushTime[pushKey] || (now - lastPushTime[pushKey] > 900000)) {
                                     const title = level === 2 ? `🔥 獵殺: ${s.replace('USDT','')}` : `📡 預警: ${s.replace('USDT','')}`;
-                                    const msg = `資費: ${(fNow*100).toFixed(4)}%\n動能: +${(totalGrowth*100).toFixed(1)}%\n斜率: ${(slope*100).toFixed(1)}%`;
+                                    const msg = `資費: ${(fNow*100).toFixed(4)}%\nMOM: +${(totalGrowth*100).toFixed(1)}%\nSLOPE: ${(slope*100).toFixed(1)}%`;
                                     
                                     addLog(s, fNow, slope, totalGrowth, level);
                                     sendPush(title, msg, level === 2 ? 1 : 0);
@@ -166,10 +186,10 @@
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
         const color = level === 2 ? 'border-red-600' : 'border-orange-500';
-        entry.className = `p-3 bg-zinc-900 border-l-4 ${color} mb-2 shadow-lg`;
+        entry.className = `p-3 bg-zinc-900 border-l-4 ${color} mb-2`;
         entry.innerHTML = `
             <div class="flex justify-between text-white font-bold mb-1">
-                <span>${level === 2 ? '🔥 獵殺' : '📡 預警'} ${s.replace('USDT','')}</span>
+                <span>${level === 2 ? '🔥' : '📡'} ${s.replace('USDT','')}</span>
                 <span class="text-[10px] text-zinc-500">${new Date().toLocaleTimeString()}</span>
             </div>
             <div class="text-[10px] ${level === 2 ? 'text-red-400' : 'text-orange-400'}">MOM: +${(growth*100).toFixed(1)}% | SLOPE: ${(slope*100).toFixed(1)}%</div>
@@ -206,8 +226,8 @@
                     </div>
                 </div>
                 <div class="mt-2 text-[9px] text-zinc-700 italic border-t border-zinc-800 pt-2 flex justify-between">
-                    <span>5S REALTIME DATA</span>
-                    <span>SLOPE: ${(slope*100).toFixed(1)}%</span>
+                    <span>V3.2.1-5S</span>
+                    <button onclick="removeCoin('${s}')" class="underline hover:text-white">REMOVE</button>
                 </div>
             `;
             container.appendChild(card);
