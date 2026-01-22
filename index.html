@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNIPER V3.1 | 終極校準</title>
+    <title>SNIPER V3.2.1 | 5S 階梯加速版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; overflow-x: hidden; }
         .gold-border { border: 1px solid #FFD700; }
-        .ambush-card { border: 2px solid #ff0000; box-shadow: 0 0 15px #ff0000; animation: blink 1s infinite; }
+        .alert-card { border: 2px solid #ffa500; box-shadow: 0 0 10px #ffa500; }
+        .hunt-card { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         #logContainer::-webkit-scrollbar { width: 4px; }
         #logContainer::-webkit-scrollbar-thumb { background: #444; }
@@ -20,26 +21,23 @@
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.1</h1>
+            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.2.1</h1>
             <button onclick="toggleSystem()" class="bg-zinc-900 border border-zinc-700 px-4 py-1 rounded-full flex items-center">
                 <span id="statusDot" class="dot bg-red-600"></span>
                 <span id="statusText" class="text-red-500 text-xs font-bold uppercase">OFFLINE</span>
             </button>
         </div>
-        <div class="flex gap-2">
-            <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white border border-blue-700 font-bold">🧪 測試三人同步</button>
-        </div>
+        <div class="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Frequency: 5s | Sampling: 45pts</div>
     </header>
 
     <div class="flex flex-1 overflow-hidden">
         <main class="flex-1 p-4 overflow-y-auto bg-zinc-950">
-            <h2 class="text-sm font-bold mb-4 text-zinc-500 uppercase tracking-widest">📡 Live Monitor (MOM: 2% / SLOPE: 40%)</h2>
             <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div>
         </main>
 
         <aside class="w-80 border-l border-yellow-900 bg-black flex flex-col">
             <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
-                <h2 class="font-bold text-red-500 text-sm">📂 獵殺日誌</h2>
+                <h2 class="font-bold text-red-500 text-sm">📂 實戰日誌 (階梯模式)</h2>
                 <button onclick="clearLogs()" class="text-[10px] text-zinc-600 underline">清除</button>
             </div>
             <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
@@ -51,9 +49,13 @@
         PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", 
         PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw",
         EXCLUDE: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'],
-        OBSERVE_SLOPE: -0.15, // 斜率 -15% 上榜
-        HUNT_SLOPE: -0.4,    // 🏮 核心：斜率 40%
-        OI_MOMENTUM: 0.02    // 🏮 核心：動能 2%
+        SAMPLE_SIZE: 45,      // 5秒一次，取45次約等於3.7分鐘窗口
+        // 第一階：預警 (搶先卡位)
+        PRE_SLOPE: -0.25,     
+        PRE_MOM: 0.008,       
+        // 第二階：獵殺 (確定動能)
+        HUNT_SLOPE: -0.4,     
+        HUNT_MOM: 0.02        
     };
 
     let pinnedCoins = [], coinHistory = {}, baseOI = {}, joinTime = {}, lastPushTime = {}, oiHistory = {}; 
@@ -65,10 +67,10 @@
         const text = document.getElementById('statusText');
         if (isRunning) {
             dot.className = "dot bg-green-500 shadow-[0_0_8px_#00ff00]";
-            text.innerText = "ONLINE (8s)";
+            text.innerText = "ONLINE (5S)";
             text.className = "status-on text-xs font-bold uppercase";
             updateData();
-            timer = setInterval(updateData, 8000);
+            timer = setInterval(updateData, 5000); // 🏮 鎖定 5 秒頻率
         } else {
             dot.className = "dot bg-red-600";
             text.innerText = "OFFLINE";
@@ -77,30 +79,27 @@
         }
     }
 
-    async function sendPush(title, message) {
+    async function sendPush(title, message, priority = 0) {
         const params = new URLSearchParams();
         params.append("token", CONFIG.PO_TOKEN);
         params.append("user", CONFIG.PO_USER);
         params.append("title", title);
         params.append("message", message);
-        params.append("priority", "1");
-        params.append("sound", "classical");
+        params.append("priority", priority.toString());
+        params.append("sound", priority === 1 ? "falling" : "classical");
         try {
-            await fetch('https://api.pushover.net/1/messages.json', {
+            fetch('https://api.pushover.net/1/messages.json', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: params.toString()
             });
-        } catch(e) { console.error("Push Error", e); }
-    }
-
-    async function testPush() {
-        await sendPush("Sniper V3.1 測試", "三位戰友請注意，群組連線成功！");
-        alert("測試請求已發出，請確認三台手機...");
+        } catch(e) {}
     }
 
     async function getOI(symbol) {
         try {
+            // 微秒級延遲防止 API 撞牆
+            await new Promise(r => setTimeout(r, Math.random() * 150));
             const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`);
             const data = await res.json();
             return parseFloat(data.openInterest);
@@ -120,13 +119,13 @@
                 
                 if (!coinHistory[s]) coinHistory[s] = [];
                 coinHistory[s].push(fNow);
-                if (coinHistory[s].length > 75) coinHistory[s].shift();
+                if (coinHistory[s].length > CONFIG.SAMPLE_SIZE) coinHistory[s].shift();
 
-                if (coinHistory[s].length >= 75) {
+                if (coinHistory[s].length >= CONFIG.SAMPLE_SIZE) {
                     const fPast = coinHistory[s][0];
                     const slope = (fNow - fPast) / Math.abs(fPast);
                     
-                    if (fNow <= -0.0003 && slope <= CONFIG.OBSERVE_SLOPE) {
+                    if (fNow <= -0.0001 && slope <= -0.1) { 
                         if (!pinnedCoins.includes(s)) {
                             pinnedCoins.unshift(s);
                             joinTime[s] = new Date().toLocaleTimeString('zh-TW', {hour12: false});
@@ -137,16 +136,21 @@
                         const currentOI = await getOI(s);
                         if (currentOI && baseOI[s]) {
                             const totalGrowth = (currentOI - baseOI[s]) / baseOI[s];
+                            const now = Date.now();
                             
-                            // 🏮 獵殺判定：40% 斜率 + 2% 動能
-                            if (slope <= CONFIG.HUNT_SLOPE && totalGrowth >= CONFIG.OI_MOMENTUM) {
-                                const now = Date.now();
-                                if (!lastPushTime[s] || (now - lastPushTime[s] > 1800000)) {
-                                    // 關鍵：先寫日誌，保證 UI 一定有反應
-                                    addLog(s, fNow, slope, totalGrowth);
-                                    // 後發推播
-                                    sendPush(`🔥獵殺: ${s.replace('USDT','')}`, `資費: ${(fNow*100).toFixed(4)}%\n動能: +${(totalGrowth*100).toFixed(1)}%\n斜率: ${(slope*100).toFixed(1)}%`);
-                                    lastPushTime[s] = now;
+                            let level = 0; 
+                            if (slope <= CONFIG.HUNT_SLOPE && totalGrowth >= CONFIG.HUNT_MOM) level = 2;
+                            else if (slope <= CONFIG.PRE_SLOPE && totalGrowth >= CONFIG.PRE_MOM) level = 1;
+
+                            if (level > 0) {
+                                const pushKey = `${s}_${level}`;
+                                if (!lastPushTime[pushKey] || (now - lastPushTime[pushKey] > 900000)) { // 15分冷卻
+                                    const title = level === 2 ? `🔥 獵殺: ${s.replace('USDT','')}` : `📡 預警: ${s.replace('USDT','')}`;
+                                    const msg = `資費: ${(fNow*100).toFixed(4)}%\n動能: +${(totalGrowth*100).toFixed(1)}%\n斜率: ${(slope*100).toFixed(1)}%`;
+                                    
+                                    addLog(s, fNow, slope, totalGrowth, level);
+                                    sendPush(title, msg, level === 2 ? 1 : 0);
+                                    lastPushTime[pushKey] = now;
                                 }
                             }
                             oiHistory[s] = currentOI;
@@ -158,17 +162,17 @@
         } catch (e) { console.error(e); }
     }
 
-    function addLog(s, f, slope, growth) {
+    function addLog(s, f, slope, growth, level) {
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
-        entry.className = "p-3 bg-zinc-900 border-l-4 border-red-600 mb-2";
+        const color = level === 2 ? 'border-red-600' : 'border-orange-500';
+        entry.className = `p-3 bg-zinc-900 border-l-4 ${color} mb-2 shadow-lg`;
         entry.innerHTML = `
             <div class="flex justify-between text-white font-bold mb-1">
-                <span>${s.replace('USDT','')}</span>
+                <span>${level === 2 ? '🔥 獵殺' : '📡 預警'} ${s.replace('USDT','')}</span>
                 <span class="text-[10px] text-zinc-500">${new Date().toLocaleTimeString()}</span>
             </div>
-            <div class="text-[10px] text-red-400">動能: +${(growth*100).toFixed(1)}% | 斜率: ${(slope*100).toFixed(1)}%</div>
-            <div class="text-[10px] text-yellow-500 mt-1 font-bold italic">🎯 行情發動</div>
+            <div class="text-[10px] ${level === 2 ? 'text-red-400' : 'text-orange-400'}">MOM: +${(growth*100).toFixed(1)}% | SLOPE: ${(slope*100).toFixed(1)}%</div>
         `;
         container.prepend(entry);
     }
@@ -179,27 +183,31 @@
         pinnedCoins.forEach(s => {
             const data = allData.find(c => c.symbol === s);
             const fNow = data ? parseFloat(data.lastFundingRate) : 0;
-            const slope = coinHistory[s].length >= 75 ? (fNow - coinHistory[s][0]) / Math.abs(coinHistory[s][0]) : 0;
+            const slope = coinHistory[s].length >= CONFIG.SAMPLE_SIZE ? (fNow - coinHistory[s][0]) / Math.abs(coinHistory[s][0]) : 0;
             const growth = baseOI[s] ? (oiHistory[s] - baseOI[s]) / baseOI[s] : 0;
-            const isHunt = slope <= CONFIG.HUNT_SLOPE && growth >= CONFIG.OI_MOMENTUM;
+            
+            let statusClass = 'gold-border';
+            let statusText = 'Observing';
+            if (slope <= CONFIG.HUNT_SLOPE && growth >= CONFIG.HUNT_MOM) { statusClass = 'hunt-card'; statusText = '!! HUNTING !!'; }
+            else if (slope <= CONFIG.PRE_SLOPE && growth >= CONFIG.PRE_MOM) { statusClass = 'alert-card'; statusText = 'Warning'; }
 
             const card = document.createElement('div');
-            card.className = `p-4 bg-zinc-900 rounded ${isHunt ? 'ambush-card' : 'gold-border'}`;
+            card.className = `p-4 bg-zinc-900 rounded ${statusClass}`;
             card.innerHTML = `
                 <div class="flex justify-between items-center text-[9px] mb-2 uppercase tracking-widest font-bold">
-                    <span class="${isHunt ? 'text-red-500' : 'text-zinc-500'}">${isHunt ? '!! HUNTING !!' : 'Observing'}</span>
-                    <span class="text-zinc-600">IN: ${joinTime[s]}</span>
+                    <span class="${statusText === 'Observing' ? 'text-zinc-500' : (statusText === 'Warning' ? 'text-orange-500' : 'text-red-500')}">${statusText}</span>
+                    <span class="text-zinc-600">SINCE: ${joinTime[s]}</span>
                 </div>
                 <div class="flex justify-between items-center">
                     <h2 class="text-4xl font-black text-white">${s.replace('USDT','')}</h2>
                     <div class="text-right">
                         <p class="text-lg font-bold text-red-500">${(fNow * 100).toFixed(4)}%</p>
-                        <p class="text-[10px] text-yellow-600 font-bold">動能: +${(growth * 100).toFixed(1)}%</p>
+                        <p class="text-[10px] text-yellow-600 font-bold">MOM: +${(growth * 100).toFixed(1)}%</p>
                     </div>
                 </div>
                 <div class="mt-2 text-[9px] text-zinc-700 italic border-t border-zinc-800 pt-2 flex justify-between">
-                    <span>SNIPER V3.1</span>
-                    <button onclick="removeCoin('${s}')" class="underline hover:text-white">REMOVE</button>
+                    <span>5S REALTIME DATA</span>
+                    <span>SLOPE: ${(slope*100).toFixed(1)}%</span>
                 </div>
             `;
             container.appendChild(card);
