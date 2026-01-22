@@ -2,10 +2,10 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SNIPER V3.6.3 | 慣性獵殺版</title>
+    <title>SNIPER V3.6.4 | 靜音慣性版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; overflow-x: hidden; }
+        body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; }
         .gold-border { border: 1px solid #FFD700; }
         .alert-card { border: 2px solid #ffa500; box-shadow: 0 0 10px #ffa500; }
         .hunt-card { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
@@ -18,7 +18,7 @@
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.6.3</h1>
+            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.6.4</h1>
             <div class="flex gap-2 bg-zinc-900 p-1 rounded-lg border border-zinc-700 text-white">
                 <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24">
                 <button onclick="manualAdd()" class="text-[10px] bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
@@ -42,7 +42,7 @@
             <input type="range" id="momRange" min="3" max="50" value="8" oninput="updateRangeText()" class="w-24">
             <span id="momVal" class="text-orange-500 w-10">0.8%</span>
         </div>
-        <div class="ml-4 text-zinc-500 italic">對比區間：<span id="klineRef" class="text-white">WAITING...</span></div>
+        <div class="ml-4 text-zinc-500 italic text-[9px]">前根 K 線參考：<span id="klineRef" class="text-white">--:--</span></div>
     </div>
 
     <div class="flex flex-1 overflow-hidden">
@@ -68,7 +68,7 @@
 
     let PARAMS = { ENTRY_SLOPE: -0.15, PRE_MOM: 0.008, PRE_SLOPE: -0.25, HUNT_MOM: 0.02, HUNT_SLOPE: -0.4 };
     let pinnedCoins = [], pinnedFast = [], lastKlineResult = {}, coinHistory = {}, baseOI = {}, lastPushTime = {}, oiHistory = {}; 
-    let cooldownList = {}, isRunning = false, timer = null, isUpOnly = false;
+    let cooldownList = {}, isRunning = false, timer = null, isUpOnly = false, lastCheckMin = -1;
 
     function updateRangeText() {
         const eVal = document.getElementById('entryRange').value;
@@ -84,7 +84,6 @@
 
     async function getPreviousKline(symbol) {
         try {
-            // 抓取 2 根 5m K線，第 0 個是前一根，第 1 個是現在這根
             const res = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=5m&limit=2`);
             const data = await res.json();
             const open = parseFloat(data[0][1]);
@@ -98,20 +97,21 @@
             const res = await fetch('https://fapi.binance.com/fapi/v1/premiumIndex');
             const allData = await res.json();
             const now = new Date();
+            const currentMin = now.getMinutes();
             
-            const prevMinStart = (Math.floor(now.getMinutes() / 5) * 5) - 5;
-            const refTimeStr = `${now.getHours()}:${(prevMinStart < 0 ? 55 : prevMinStart).toString().padStart(2,'0')}`;
-            document.getElementById('klineRef').innerText = `前根起點: ${refTimeStr}`;
+            // 🏮 改進：每 5 分鐘整點換線時，才強制更新全場 K 線結果一次
+            let forceUpdateK = false;
+            if (currentMin % 5 === 0 && currentMin !== lastCheckMin) {
+                forceUpdateK = true;
+                lastCheckMin = currentMin;
+                const prevMinStart = (Math.floor(currentMin / 5) * 5) - 5;
+                document.getElementById('klineRef').innerText = `${now.getHours()}:${(prevMinStart < 0 ? 55 : prevMinStart).toString().padStart(2,'0')}`;
+            }
 
             for (const coin of allData) {
                 const s = coin.symbol;
                 if (CONFIG.EXCLUDE.includes(s)) continue;
                 
-                // 🏮 核心改動：每逢換線或新幣上榜，去抓前一根 K 線結果
-                if (!lastKlineResult[s] || (now.getMinutes() % 5 === 0 && now.getSeconds() < 10)) {
-                    lastKlineResult[s] = await getPreviousKline(s);
-                }
-
                 const fNow = parseFloat(coin.lastFundingRate);
                 if (!coinHistory[s]) coinHistory[s] = [];
                 coinHistory[s].push(fNow);
@@ -119,12 +119,19 @@
 
                 if (cooldownList[s] && (Date.now() - cooldownList[s] < CONFIG.COOLDOWN_MS)) continue;
 
+                // 只有「新幣上榜」或「整點換線」才去抓 K 線
+                if (!lastKlineResult[s] || forceUpdateK) {
+                    lastKlineResult[s] = await getPreviousKline(s);
+                }
+
                 if (coinHistory[s].length >= 30) {
                     const slope = (fNow - coinHistory[s][0]) / Math.abs(coinHistory[s][0]);
                     if (fNow <= -0.0001 && slope <= PARAMS.ENTRY_SLOPE) { 
                         if (!pinnedCoins.includes(s)) {
                             pinnedCoins.unshift(s);
                             baseOI[s] = await getOI(s);
+                            // 新上榜的立刻單獨抓一次
+                            lastKlineResult[s] = await getPreviousKline(s);
                         }
                     }
                 }
@@ -144,8 +151,6 @@
         
         pinnedCoins.forEach(s => {
             const kResult = lastKlineResult[s] || { isUp: false, change: 0 };
-            
-            // 🏮 上漲過濾：判斷「上一根」5 分 K 是否為陽線
             if (isUpOnly && !kResult.isUp) return;
 
             const data = allData.find(c => c.symbol === s);
@@ -225,11 +230,12 @@
         if (!pinnedCoins.includes(s)) {
             pinnedCoins.unshift(s);
             baseOI[s] = await getOI(s);
+            lastKlineResult[s] = await getPreviousKline(s);
             input.value = '';
             render();
         }
     }
-    function testPush() { sendPush("Sniper V3.6.3 測試", "前根 K 線過濾邏輯正常", 0); alert("已送出"); }
+    function testPush() { sendPush("Sniper V3.6.4 測試", "靜音版 K 線過濾已就緒", 1); alert("已送出"); }
     function addLog(s, slope, growth, level) {
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
