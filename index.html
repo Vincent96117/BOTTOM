@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNIPER V3.5 | 嘎空監控</title>
+    <title>SNIPER V3.5.1 | 推播修復</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; overflow-x: hidden; }
@@ -20,7 +20,7 @@
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.5</h1>
+            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.5.1</h1>
             <div class="flex gap-2 bg-zinc-900 p-1 rounded-lg border border-zinc-700">
                 <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24 text-white">
                 <button onclick="manualAdd()" class="text-[10px] bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
@@ -29,22 +29,22 @@
         
         <div class="flex gap-2">
             <button id="upFilterBtn" onclick="toggleUpFilter()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600 transition-all">📈 僅看上漲</button>
-            <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white font-bold border border-blue-500">🧪 測試</button>
+            <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white font-bold border border-blue-500">🧪 測試三人同步</button>
             <button onclick="clearAllCoins()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600">🗑️ 清除</button>
             <button onclick="toggleSystem()" id="mainBtn" class="text-[10px] bg-zinc-700 px-4 py-1 rounded text-white font-bold border border-zinc-500">START</button>
         </div>
     </header>
 
-    <div class="bg-zinc-900 border-b border-zinc-800 p-3 flex flex-wrap gap-6 items-center justify-center shrink-0 text-white">
+    <div class="bg-zinc-900 border-b border-zinc-800 p-3 flex flex-wrap gap-6 items-center justify-center shrink-0 text-white font-bold">
         <div class="flex items-center gap-3">
-            <span class="text-[11px] font-bold text-zinc-400">ENTRY SLOPE:</span>
+            <span class="text-[11px] text-zinc-400 uppercase">ENTRY SLOPE:</span>
             <input type="range" id="entryRange" min="5" max="50" value="15" oninput="updateRangeText()" class="w-24">
-            <span id="entryVal" class="text-[11px] text-yellow-500 font-bold w-8">-15%</span>
+            <span id="entryVal" class="text-[11px] text-yellow-500 w-10">-15%</span>
         </div>
         <div class="flex items-center gap-3">
-            <span class="text-[11px] font-bold text-zinc-400">PRE-MOM:</span>
+            <span class="text-[11px] text-zinc-400 uppercase">PRE-MOM:</span>
             <input type="range" id="momRange" min="3" max="50" value="8" oninput="updateRangeText()" class="w-24">
-            <span id="momVal" class="text-[11px] text-orange-500 font-bold w-8">0.8%</span>
+            <span id="momVal" class="text-[11px] text-orange-500 w-10">0.8%</span>
         </div>
     </div>
 
@@ -54,8 +54,8 @@
         </main>
         <aside class="w-80 border-l border-yellow-900 bg-black flex flex-col shrink-0">
             <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
-                <h2 class="font-bold text-red-500 text-sm">📂 戰鬥日誌</h2>
-                <div id="timerDisplay" class="text-[9px] text-zinc-500 uppercase">OFFLINE</div>
+                <h2 class="font-bold text-red-500 text-sm italic">戦場日誌 Sniper v3.5</h2>
+                <div id="timerDisplay" class="text-[9px] text-zinc-500">OFFLINE</div>
             </div>
             <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
         </aside>
@@ -64,9 +64,9 @@
 <script>
     const CONFIG = {
         PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", 
-        PO_TOKEN: "acyoe3sz15x491r1349fdcau7x6pw", 
+        PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw", 
         EXCLUDE: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'],
-        SAMPLE_SIZE: 60, // 5秒一動，存60個點約5分鐘
+        SAMPLE_SIZE: 60, 
         COOLDOWN_MS: 300000 
     };
 
@@ -86,10 +86,30 @@
         PARAMS.HUNT_SLOPE = -(eVal * 2.6 / 100); 
     }
 
+    async function testPush() {
+        console.log("Testing Push...");
+        await sendPush("Sniper V3.5.1 測試", "通訊正常，上漲過濾已就緒！", 1);
+        alert("測試請求已送出，請檢查三人的手機響聲！");
+    }
+
+    async function sendPush(title, message, priority = 0) {
+        const params = new URLSearchParams();
+        params.append("token", CONFIG.PO_TOKEN);
+        params.append("user", CONFIG.PO_USER);
+        params.append("title", title);
+        params.append("message", message);
+        params.append("priority", priority.toString());
+        params.append("sound", priority === 1 ? "falling" : "classical");
+        try {
+            const resp = await fetch('https://api.pushover.net/1/messages.json', { method: 'POST', body: params });
+            const result = await resp.json();
+            console.log("Pushover Result:", result);
+        } catch(e) { console.error("Push Error:", e); }
+    }
+
     function toggleUpFilter() {
         isUpOnly = !isUpOnly;
-        const btn = document.getElementById('upFilterBtn');
-        btn.className = isUpOnly ? "text-[10px] filter-on px-3 py-1 rounded font-bold border transition-all" : "text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600 transition-all";
+        document.getElementById('upFilterBtn').className = isUpOnly ? "text-[10px] filter-on px-3 py-1 rounded font-bold border transition-all" : "text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600 transition-all";
         render();
     }
 
@@ -127,12 +147,10 @@
                 const fNow = parseFloat(coin.lastFundingRate);
                 const pNow = parseFloat(coin.markPrice);
                 
-                // 價格歷史紀錄 (為了判斷 5 分鐘漲跌)
                 if (!priceHistory[s]) priceHistory[s] = [];
                 priceHistory[s].push(pNow);
                 if (priceHistory[s].length > CONFIG.SAMPLE_SIZE) priceHistory[s].shift();
 
-                // 資費歷史
                 if (!coinHistory[s]) coinHistory[s] = [];
                 coinHistory[s].push(fNow);
                 if (coinHistory[s].length > CONFIG.SAMPLE_SIZE) coinHistory[s].shift();
@@ -169,7 +187,6 @@
             const pOld = priceHistory[s] ? priceHistory[s][0] : pNow;
             const isRising = pNow > pOld;
 
-            // 🏮 如果開啟「僅看上漲」且該幣沒漲，直接跳過不顯示 (背景繼續算)
             if (isUpOnly && !isRising) return;
 
             const fNow = data ? parseFloat(data.lastFundingRate) : 0;
@@ -224,16 +241,6 @@
         } catch(e) { return null; }
     }
 
-    async function sendPush(title, message, priority) {
-        const params = new URLSearchParams();
-        params.append("token", CONFIG.PO_TOKEN);
-        params.append("user", CONFIG.PO_USER);
-        params.append("title", title);
-        params.append("message", message);
-        params.append("priority", priority.toString());
-        fetch('https://api.pushover.net/1/messages.json', { method: 'POST', body: params });
-    }
-
     function removeCoin(s) { cooldownList[s] = Date.now(); pinnedCoins = pinnedCoins.filter(c => c !== s); pinnedFast = pinnedFast.filter(c => c !== s); render(); }
     function togglePin(s) { if (pinnedFast.includes(s)) pinnedFast = pinnedFast.filter(c => c !== s); else pinnedFast.push(s); render(); }
     async function manualAdd() {
@@ -250,7 +257,6 @@
         }
     }
     function clearAllCoins() { pinnedCoins = []; pinnedFast = []; render(); }
-    function testPush() { sendPush("Sniper V3.5 測試", "上漲過濾與 5 分鐘價格監控正常", 0); alert("測試中..."); }
     function addLog(s, slope, growth, level) {
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
