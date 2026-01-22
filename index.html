@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNIPER V3.3.2 | 15% 校準版</title>
+    <title>SNIPER V3.4 | 門檻自由調</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; overflow-x: hidden; }
@@ -12,15 +12,14 @@
         .hunt-card { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
         .pinned-card { border: 2px solid #00ffff; box-shadow: 0 0 15px #00ffff; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        #logContainer::-webkit-scrollbar { width: 4px; }
-        #logContainer::-webkit-scrollbar-thumb { background: #444; }
+        input[type=range] { accent-color: #FFD700; cursor: pointer; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.3.2</h1>
+            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.4</h1>
             <div class="flex gap-2 bg-zinc-900 p-1 rounded-lg border border-zinc-700">
                 <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24 text-white">
                 <button onclick="manualAdd()" class="text-[10px] bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
@@ -33,14 +32,28 @@
         </div>
     </header>
 
+    <div class="bg-zinc-900 border-b border-zinc-800 p-3 flex flex-wrap gap-6 items-center justify-center shrink-0">
+        <div class="flex items-center gap-3">
+            <span class="text-[11px] font-bold text-zinc-400 uppercase">上榜斜率 (ENTRY):</span>
+            <input type="range" id="entryRange" min="5" max="50" value="15" oninput="updateRangeText()" class="w-32">
+            <span id="entryVal" class="text-[11px] text-yellow-500 font-bold">-15%</span>
+        </div>
+        <div class="flex items-center gap-3 border-l border-zinc-700 pl-6">
+            <span class="text-[11px] font-bold text-zinc-400 uppercase">預警動能 (PRE-MOM):</span>
+            <input type="range" id="momRange" min="3" max="50" value="8" oninput="updateRangeText()" class="w-32">
+            <span id="momVal" class="text-[11px] text-orange-500 font-bold">0.8%</span>
+        </div>
+        <div class="text-[10px] text-zinc-500 italic">※ 獵殺門檻固定為預警的 2.5 倍速度</div>
+    </div>
+
     <div class="flex flex-1 overflow-hidden">
         <main class="flex-1 p-4 overflow-y-auto bg-zinc-950">
             <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div>
         </main>
-        <aside class="w-80 border-l border-yellow-900 bg-black flex flex-col">
+        <aside class="w-80 border-l border-yellow-900 bg-black flex flex-col shrink-0">
             <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
                 <h2 class="font-bold text-red-500 text-sm">📂 戰鬥日誌</h2>
-                <div id="timerDisplay" class="text-[9px] text-zinc-500 italic">OFFLINE</div>
+                <div id="timerDisplay" class="text-[9px] text-zinc-500">OFFLINE</div>
             </div>
             <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
         </aside>
@@ -52,18 +65,38 @@
         PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw", 
         EXCLUDE: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'],
         SAMPLE_SIZE: 45,      
-        ENTRY_SLOPE: -0.15,   // 🏮 哥，這裡改成 -15% 才能上榜
-        PRE_SLOPE: -0.25,     
-        PRE_MOM: 0.008,       
-        HUNT_SLOPE: -0.4,     
-        HUNT_MOM: 0.02,
         COOLDOWN_MS: 300000 
+    };
+
+    // 🏮 動態參數控制
+    let PARAMS = {
+        ENTRY_SLOPE: -0.15,
+        PRE_MOM: 0.008,
+        PRE_SLOPE: -0.25,
+        HUNT_MOM: 0.02,
+        HUNT_SLOPE: -0.4
     };
 
     let pinnedCoins = [], pinnedFast = [];
     let coinHistory = {}, baseOI = {}, joinTime = {}, lastPushTime = {}, oiHistory = {}; 
     let cooldownList = {}; 
     let isRunning = false, timer = null;
+
+    function updateRangeText() {
+        const eVal = document.getElementById('entryRange').value;
+        const mVal = document.getElementById('momRange').value;
+        
+        // 更新 UI 顯示
+        document.getElementById('entryVal').innerText = `-${eVal}%`;
+        document.getElementById('momVal').innerText = `${(mVal/10).toFixed(1)}%`;
+
+        // 更新核心邏輯參數
+        PARAMS.ENTRY_SLOPE = -(eVal / 100);
+        PARAMS.PRE_MOM = mVal / 1000;
+        PARAMS.PRE_SLOPE = -(eVal * 1.6 / 100); // 預警斜率隨比例增加
+        PARAMS.HUNT_MOM = (mVal * 2.5) / 1000; // 獵殺動能為預警 2.5 倍
+        PARAMS.HUNT_SLOPE = -(eVal * 2.6 / 100); 
+    }
 
     function toggleSystem() {
         isRunning = !isRunning;
@@ -82,7 +115,7 @@
         if (!isRunning) return;
         await updateData();
         const nextInterval = pinnedFast.length > 0 ? 3000 : 5000;
-        document.getElementById('timerDisplay').innerText = `頻率: ${nextInterval/1000}s ` + (pinnedFast.length > 0 ? '⚡狂暴' : '');
+        document.getElementById('timerDisplay').innerText = `掃描: ${nextInterval/1000}s ` + (pinnedFast.length > 0 ? '⚡狂暴' : '');
         timer = setTimeout(runLoop, nextInterval);
     }
 
@@ -104,8 +137,7 @@
 
                 if (coinHistory[s].length >= CONFIG.SAMPLE_SIZE) {
                     const slope = (fNow - coinHistory[s][0]) / Math.abs(coinHistory[s][0]);
-                    // 🏮 上榜判斷：資費負值 且 斜率達 -15%
-                    if (fNow <= -0.0001 && slope <= CONFIG.ENTRY_SLOPE) { 
+                    if (fNow <= -0.0001 && slope <= PARAMS.ENTRY_SLOPE) { 
                         if (!pinnedCoins.includes(s)) {
                             pinnedCoins.unshift(s);
                             joinTime[s] = new Date().toLocaleTimeString('zh-TW', {hour12: false});
@@ -117,13 +149,7 @@
 
             for (const s of pinnedCoins) {
                 const currentOI = await getOI(s);
-                if (currentOI && baseOI[s]) {
-                    oiHistory[s] = currentOI;
-                    const growth = (currentOI - baseOI[s]) / baseOI[s];
-                    const slope = (fNow - coinHistory[s][0]) / Math.abs(coinHistory[s][0]); // 這裡簡化邏輯供參考
-                    
-                    // 這裡的 slope 判定會從 updateData 內的循環繼承，實際渲染時重新計算
-                }
+                if (currentOI && baseOI[s]) oiHistory[s] = currentOI;
             }
             render(allData);
         } catch (e) { console.error(e); }
@@ -141,8 +167,8 @@
             const isPinned = pinnedFast.includes(s);
             
             let level = 0;
-            if (slope <= CONFIG.HUNT_SLOPE && growth >= CONFIG.HUNT_MOM) level = 2;
-            else if (slope <= CONFIG.PRE_SLOPE && growth >= CONFIG.PRE_MOM) level = 1;
+            if (slope <= PARAMS.HUNT_SLOPE && growth >= PARAMS.HUNT_MOM) level = 2;
+            else if (slope <= PARAMS.PRE_SLOPE && growth >= PARAMS.PRE_MOM) level = 1;
 
             if (level > 0) {
                 const pushKey = `${s}_${level}`;
@@ -159,20 +185,20 @@
                 <div class="flex justify-between items-center text-[9px] mb-2 font-bold uppercase">
                     <span class="${isPinned ? 'text-cyan-400' : 'text-zinc-500'}">${isPinned ? '⚡ 3S SCAN' : 'Monitoring'}</span>
                     <div class="flex gap-2">
-                        <button onclick="togglePin('${s}')" class="text-xs">${isPinned ? '📍' : '📌'}</button>
-                        <button onclick="removeCoin('${s}')" class="text-xs">❌</button>
+                        <button onclick="togglePin('${s}')" class="text-xs hover:scale-125 transition-transform">${isPinned ? '📍' : '📌'}</button>
+                        <button onclick="removeCoin('${s}')" class="text-xs hover:text-white transition-colors">❌</button>
                     </div>
                 </div>
                 <div class="flex justify-between items-center">
-                    <h2 class="text-3xl font-black text-white">${s.replace('USDT','')}</h2>
+                    <h2 class="text-3xl font-black text-white leading-none">${s.replace('USDT','')}</h2>
                     <div class="text-right">
                         <p class="text-lg font-bold text-red-500">${(fNow * 100).toFixed(4)}%</p>
                         <p class="text-[10px] text-yellow-600 font-bold">MOM: +${(growth * 100).toFixed(1)}%</p>
                     </div>
                 </div>
-                <div class="mt-2 text-[9px] text-zinc-600 flex justify-between italic">
-                    <span>IN: ${joinTime[s]}</span>
-                    <span>SLOPE: ${(slope*100).toFixed(1)}%</span>
+                <div class="mt-2 text-[9px] text-zinc-600 flex justify-between italic border-t border-zinc-800 pt-2">
+                    <span>SINCE: ${joinTime[s]}</span>
+                    <span>SLP: ${(slope*100).toFixed(1)}%</span>
                 </div>
             `;
             container.appendChild(card);
@@ -225,7 +251,7 @@
     }
 
     function clearAllCoins() { pinnedCoins = []; pinnedFast = []; render(); }
-    function testPush() { sendPush("Sniper V3.3.2 測試", "上榜門檻已調至 -15%", 0); alert("測試中..."); }
+    function testPush() { sendPush("Sniper V3.4 測試", "手動調控面板測試正常", 0); alert("測試中..."); }
     function addLog(s, slope, growth, level) {
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
