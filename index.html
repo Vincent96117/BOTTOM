@@ -2,8 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNIPER V3.5.1 | 推播修復</title>
+    <title>SNIPER V3.6 | 整點 5K 對齊版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; overflow-x: hidden; }
@@ -12,7 +11,6 @@
         .hunt-card { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
         .pinned-card { border: 2px solid #00ffff; box-shadow: 0 0 15px #00ffff; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        input[type=range] { accent-color: #FFD700; }
         .filter-on { background-color: #064e3b; color: #34d399; border-color: #059669; }
     </style>
 </head>
@@ -20,7 +18,7 @@
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.5.1</h1>
+            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.6</h1>
             <div class="flex gap-2 bg-zinc-900 p-1 rounded-lg border border-zinc-700">
                 <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24 text-white">
                 <button onclick="manualAdd()" class="text-[10px] bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
@@ -28,24 +26,25 @@
         </div>
         
         <div class="flex gap-2">
-            <button id="upFilterBtn" onclick="toggleUpFilter()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600 transition-all">📈 僅看上漲</button>
-            <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white font-bold border border-blue-500">🧪 測試三人同步</button>
-            <button onclick="clearAllCoins()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600">🗑️ 清除</button>
+            <button id="upFilterBtn" onclick="toggleUpFilter()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600 transition-all">📈 僅看 5K 上漲</button>
+            <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white font-bold">🧪 測試</button>
+            <button onclick="clearAllCoins()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold">🗑️ 清除</button>
             <button onclick="toggleSystem()" id="mainBtn" class="text-[10px] bg-zinc-700 px-4 py-1 rounded text-white font-bold border border-zinc-500">START</button>
         </div>
     </header>
 
-    <div class="bg-zinc-900 border-b border-zinc-800 p-3 flex flex-wrap gap-6 items-center justify-center shrink-0 text-white font-bold">
-        <div class="flex items-center gap-3">
-            <span class="text-[11px] text-zinc-400 uppercase">ENTRY SLOPE:</span>
+    <div class="bg-zinc-900 border-b border-zinc-800 p-3 flex flex-wrap gap-6 items-center justify-center shrink-0 text-white font-bold text-[11px]">
+        <div class="flex items-center gap-2">
+            <span class="text-zinc-400 uppercase">ENTRY:</span>
             <input type="range" id="entryRange" min="5" max="50" value="15" oninput="updateRangeText()" class="w-24">
-            <span id="entryVal" class="text-[11px] text-yellow-500 w-10">-15%</span>
+            <span id="entryVal" class="text-yellow-500 w-10">-15%</span>
         </div>
-        <div class="flex items-center gap-3">
-            <span class="text-[11px] text-zinc-400 uppercase">PRE-MOM:</span>
+        <div class="flex items-center gap-2">
+            <span class="text-zinc-400 uppercase">MOM:</span>
             <input type="range" id="momRange" min="3" max="50" value="8" oninput="updateRangeText()" class="w-24">
-            <span id="momVal" class="text-[11px] text-orange-500 w-10">0.8%</span>
+            <span id="momVal" class="text-orange-500 w-10">0.8%</span>
         </div>
+        <div class="ml-4 text-zinc-500 italic">基準線：<span id="klineRef" class="text-white">--:--</span> (5分K開盤)</div>
     </div>
 
     <div class="flex flex-1 overflow-hidden">
@@ -54,8 +53,8 @@
         </main>
         <aside class="w-80 border-l border-yellow-900 bg-black flex flex-col shrink-0">
             <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
-                <h2 class="font-bold text-red-500 text-sm italic">戦場日誌 Sniper v3.5</h2>
-                <div id="timerDisplay" class="text-[9px] text-zinc-500">OFFLINE</div>
+                <h2 class="font-bold text-red-500 text-sm italic">戦場日誌 Sniper v3.6</h2>
+                <div id="timerDisplay" class="text-[9px] text-zinc-500 uppercase tracking-widest">OFFLINE</div>
             </div>
             <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
         </aside>
@@ -66,12 +65,11 @@
         PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", 
         PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw", 
         EXCLUDE: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'],
-        SAMPLE_SIZE: 60, 
         COOLDOWN_MS: 300000 
     };
 
     let PARAMS = { ENTRY_SLOPE: -0.15, PRE_MOM: 0.008, PRE_SLOPE: -0.25, HUNT_MOM: 0.02, HUNT_SLOPE: -0.4 };
-    let pinnedCoins = [], pinnedFast = [], priceHistory = {}, coinHistory = {}, baseOI = {}, joinTime = {}, lastPushTime = {}, oiHistory = {}; 
+    let pinnedCoins = [], pinnedFast = [], klineOpenPrice = {}, coinHistory = {}, baseOI = {}, joinTime = {}, lastPushTime = {}, oiHistory = {}; 
     let cooldownList = {}, isRunning = false, timer = null, isUpOnly = false;
 
     function updateRangeText() {
@@ -86,76 +84,41 @@
         PARAMS.HUNT_SLOPE = -(eVal * 2.6 / 100); 
     }
 
-    async function testPush() {
-        console.log("Testing Push...");
-        await sendPush("Sniper V3.5.1 測試", "通訊正常，上漲過濾已就緒！", 1);
-        alert("測試請求已送出，請檢查三人的手機響聲！");
-    }
-
-    async function sendPush(title, message, priority = 0) {
-        const params = new URLSearchParams();
-        params.append("token", CONFIG.PO_TOKEN);
-        params.append("user", CONFIG.PO_USER);
-        params.append("title", title);
-        params.append("message", message);
-        params.append("priority", priority.toString());
-        params.append("sound", priority === 1 ? "falling" : "classical");
+    // 🏮 核心修補：取得 5 分 K 整點開盤價
+    async function getKlineOpen(symbol) {
         try {
-            const resp = await fetch('https://api.pushover.net/1/messages.json', { method: 'POST', body: params });
-            const result = await resp.json();
-            console.log("Pushover Result:", result);
-        } catch(e) { console.error("Push Error:", e); }
-    }
-
-    function toggleUpFilter() {
-        isUpOnly = !isUpOnly;
-        document.getElementById('upFilterBtn').className = isUpOnly ? "text-[10px] filter-on px-3 py-1 rounded font-bold border transition-all" : "text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600 transition-all";
-        render();
-    }
-
-    function toggleSystem() {
-        isRunning = !isRunning;
-        const btn = document.getElementById('mainBtn');
-        if (isRunning) {
-            btn.innerText = "STOP"; btn.className = "text-[10px] bg-red-900 px-4 py-1 rounded text-white font-bold";
-            runLoop();
-        } else {
-            btn.innerText = "START"; btn.className = "text-[10px] bg-zinc-700 px-4 py-1 rounded text-white font-bold";
-            document.getElementById('timerDisplay').innerText = "OFFLINE";
-            clearTimeout(timer);
-        }
-    }
-
-    async function runLoop() {
-        if (!isRunning) return;
-        await updateData();
-        const nextInterval = pinnedFast.length > 0 ? 3000 : 5000;
-        document.getElementById('timerDisplay').innerText = `掃描: ${nextInterval/1000}s ` + (pinnedFast.length > 0 ? '⚡狂暴' : '');
-        timer = setTimeout(runLoop, nextInterval);
+            const res = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=5m&limit=1`);
+            const data = await res.json();
+            return parseFloat(data[0][1]); // 抓開盤價
+        } catch(e) { return null; }
     }
 
     async function updateData() {
         try {
             const res = await fetch('https://fapi.binance.com/fapi/v1/premiumIndex');
             const allData = await res.json();
-            const now = Date.now();
+            const now = new Date();
             
+            // 更新 UI 上的基準時間點 (例如 3:12 -> 顯示 03:10)
+            const refMin = Math.floor(now.getMinutes() / 5) * 5;
+            document.getElementById('klineRef').innerText = `${now.getHours().toString().padStart(2,'0')}:${refMin.toString().padStart(2,'0')}`;
+
             for (const coin of allData) {
                 const s = coin.symbol;
                 if (CONFIG.EXCLUDE.includes(s)) continue;
                 
                 const fNow = parseFloat(coin.lastFundingRate);
-                const pNow = parseFloat(coin.markPrice);
                 
-                if (!priceHistory[s]) priceHistory[s] = [];
-                priceHistory[s].push(pNow);
-                if (priceHistory[s].length > CONFIG.SAMPLE_SIZE) priceHistory[s].shift();
+                // 每次循環更新一次該幣的 5K 開盤價基準
+                if (!klineOpenPrice[s] || now.getMinutes() % 5 === 0) {
+                    klineOpenPrice[s] = await getKlineOpen(s);
+                }
 
                 if (!coinHistory[s]) coinHistory[s] = [];
                 coinHistory[s].push(fNow);
-                if (coinHistory[s].length > CONFIG.SAMPLE_SIZE) coinHistory[s].shift();
+                if (coinHistory[s].length > 45) coinHistory[s].shift();
 
-                if (cooldownList[s] && (now - cooldownList[s] < CONFIG.COOLDOWN_MS)) continue;
+                if (cooldownList[s] && (Date.now() - cooldownList[s] < CONFIG.COOLDOWN_MS)) continue;
 
                 if (coinHistory[s].length >= 30) {
                     const slope = (fNow - coinHistory[s][0]) / Math.abs(coinHistory[s][0]);
@@ -184,9 +147,10 @@
         pinnedCoins.forEach(s => {
             const data = allData.find(c => c.symbol === s);
             const pNow = data ? parseFloat(data.markPrice) : 0;
-            const pOld = priceHistory[s] ? priceHistory[s][0] : pNow;
-            const isRising = pNow > pOld;
+            const pOpen = klineOpenPrice[s] || pNow;
+            const isRising = pNow > pOpen;
 
+            // 🏮 上漲過濾：只看當前 5 分 K 是「陽線」的幣
             if (isUpOnly && !isRising) return;
 
             const fNow = data ? parseFloat(data.lastFundingRate) : 0;
@@ -201,7 +165,7 @@
             if (level > 0) {
                 const pushKey = `${s}_${level}`;
                 if (!lastPushTime[pushKey] || (Date.now() - lastPushTime[pushKey] > 900000)) {
-                    sendPush(level === 2 ? `🔥 獵殺: ${s.replace('USDT','')}` : `📡 預警: ${s.replace('USDT','')}`, `MOM: +${(growth*100).toFixed(1)}%\n漲幅: ${(((pNow-pOld)/pOld)*100).toFixed(2)}%`, level === 2 ? 1 : 0);
+                    sendPush(level === 2 ? `🔥 獵殺: ${s.replace('USDT','')}` : `📡 預警: ${s.replace('USDT','')}`, `MOM: +${(growth*100).toFixed(1)}%\n5K漲幅: ${(((pNow-pOpen)/pOpen)*100).toFixed(2)}%`, level === 2 ? 1 : 0);
                     addLog(s, slope, growth, level);
                     lastPushTime[pushKey] = Date.now();
                 }
@@ -211,7 +175,7 @@
             card.className = `p-4 bg-zinc-900 rounded ${isPinned ? 'pinned-card' : (level===2?'hunt-card':(level===1?'alert-card':'gold-border'))}`;
             card.innerHTML = `
                 <div class="flex justify-between items-center text-[9px] mb-2 font-bold uppercase">
-                    <span class="${isRising ? 'text-green-400' : 'text-zinc-500'}">${isRising ? '📈 RISING' : 'Monitoring'}</span>
+                    <span class="${isRising ? 'text-green-400' : 'text-zinc-500'}">${isRising ? '📈 5K RISING' : '5K FALLING'}</span>
                     <div class="flex gap-2 text-xs">
                         <button onclick="togglePin('${s}')">${isPinned ? '📍' : '📌'}</button>
                         <button onclick="removeCoin('${s}')">❌</button>
@@ -221,7 +185,7 @@
                     <h2 class="text-3xl font-black text-white leading-none">${s.replace('USDT','')}</h2>
                     <div class="text-right">
                         <p class="text-lg font-bold text-red-500">${(fNow * 100).toFixed(4)}%</p>
-                        <p class="text-[10px] ${isRising?'text-green-500':'text-zinc-500'} font-bold">5M: ${(((pNow-pOld)/pOld)*100).toFixed(2)}%</p>
+                        <p class="text-[10px] ${isRising?'text-green-500':'text-zinc-500'} font-bold">5K: ${(((pNow-pOpen)/pOpen)*100).toFixed(2)}%</p>
                     </div>
                 </div>
                 <div class="mt-2 text-[9px] text-zinc-600 flex justify-between italic pt-2 border-t border-zinc-800">
@@ -233,16 +197,29 @@
         });
     }
 
-    async function getOI(symbol) {
-        try {
-            const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`);
-            const data = await res.json();
-            return parseFloat(data.openInterest);
-        } catch(e) { return null; }
+    async function sendPush(title, message, priority = 0) {
+        const params = new URLSearchParams();
+        params.append("token", CONFIG.PO_TOKEN);
+        params.append("user", CONFIG.PO_USER);
+        params.append("title", title);
+        params.append("message", message);
+        params.append("priority", priority.toString());
+        try { fetch('https://api.pushover.net/1/messages.json', { method: 'POST', body: params }); } catch(e) {}
     }
 
-    function removeCoin(s) { cooldownList[s] = Date.now(); pinnedCoins = pinnedCoins.filter(c => c !== s); pinnedFast = pinnedFast.filter(c => c !== s); render(); }
+    async function runLoop() {
+        if (!isRunning) return;
+        await updateData();
+        const nextInterval = pinnedFast.length > 0 ? 3000 : 5000;
+        document.getElementById('timerDisplay').innerText = `SCAN: ${nextInterval/1000}s ` + (pinnedFast.length > 0 ? '⚡' : '');
+        timer = setTimeout(runLoop, nextInterval);
+    }
+
+    function toggleUpFilter() { isUpOnly = !isUpOnly; document.getElementById('upFilterBtn').className = isUpOnly ? "text-[10px] filter-on px-3 py-1 rounded font-bold border transition-all" : "text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600 transition-all"; render(); }
+    function toggleSystem() { isRunning = !isRunning; const btn = document.getElementById('mainBtn'); if (isRunning) { btn.innerText = "STOP"; btn.className = "text-[10px] bg-red-900 px-4 py-1 rounded text-white font-bold"; runLoop(); } else { btn.innerText = "START"; btn.className = "text-[10px] bg-zinc-700 px-4 py-1 rounded text-white font-bold"; document.getElementById('timerDisplay').innerText = "OFFLINE"; clearTimeout(timer); } }
+    async function getOI(symbol) { try { const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`); const data = await res.json(); return parseFloat(data.openInterest); } catch(e) { return null; } }
     function togglePin(s) { if (pinnedFast.includes(s)) pinnedFast = pinnedFast.filter(c => c !== s); else pinnedFast.push(s); render(); }
+    function removeCoin(s) { cooldownList[s] = Date.now(); pinnedCoins = pinnedCoins.filter(c => c !== s); pinnedFast = pinnedFast.filter(c => c !== s); render(); }
     async function manualAdd() {
         const input = document.getElementById('searchInput');
         let s = input.value.toUpperCase().trim();
@@ -257,6 +234,7 @@
         }
     }
     function clearAllCoins() { pinnedCoins = []; pinnedFast = []; render(); }
+    function testPush() { sendPush("Sniper V3.6 測試", "5K 整點對齊測試", 0); alert("已送出"); }
     function addLog(s, slope, growth, level) {
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
