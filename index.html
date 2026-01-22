@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNIPER V3.4 | 門檻自由調</title>
+    <title>SNIPER V3.5 | 嘎空監控</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; overflow-x: hidden; }
@@ -12,38 +12,40 @@
         .hunt-card { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
         .pinned-card { border: 2px solid #00ffff; box-shadow: 0 0 15px #00ffff; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        input[type=range] { accent-color: #FFD700; cursor: pointer; }
+        input[type=range] { accent-color: #FFD700; }
+        .filter-on { background-color: #064e3b; color: #34d399; border-color: #059669; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.4</h1>
+            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.5</h1>
             <div class="flex gap-2 bg-zinc-900 p-1 rounded-lg border border-zinc-700">
                 <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24 text-white">
                 <button onclick="manualAdd()" class="text-[10px] bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
             </div>
         </div>
+        
         <div class="flex gap-2">
+            <button id="upFilterBtn" onclick="toggleUpFilter()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600 transition-all">📈 僅看上漲</button>
             <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white font-bold border border-blue-500">🧪 測試</button>
             <button onclick="clearAllCoins()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600">🗑️ 清除</button>
             <button onclick="toggleSystem()" id="mainBtn" class="text-[10px] bg-zinc-700 px-4 py-1 rounded text-white font-bold border border-zinc-500">START</button>
         </div>
     </header>
 
-    <div class="bg-zinc-900 border-b border-zinc-800 p-3 flex flex-wrap gap-6 items-center justify-center shrink-0">
+    <div class="bg-zinc-900 border-b border-zinc-800 p-3 flex flex-wrap gap-6 items-center justify-center shrink-0 text-white">
         <div class="flex items-center gap-3">
-            <span class="text-[11px] font-bold text-zinc-400 uppercase">上榜斜率 (ENTRY):</span>
-            <input type="range" id="entryRange" min="5" max="50" value="15" oninput="updateRangeText()" class="w-32">
-            <span id="entryVal" class="text-[11px] text-yellow-500 font-bold">-15%</span>
+            <span class="text-[11px] font-bold text-zinc-400">ENTRY SLOPE:</span>
+            <input type="range" id="entryRange" min="5" max="50" value="15" oninput="updateRangeText()" class="w-24">
+            <span id="entryVal" class="text-[11px] text-yellow-500 font-bold w-8">-15%</span>
         </div>
-        <div class="flex items-center gap-3 border-l border-zinc-700 pl-6">
-            <span class="text-[11px] font-bold text-zinc-400 uppercase">預警動能 (PRE-MOM):</span>
-            <input type="range" id="momRange" min="3" max="50" value="8" oninput="updateRangeText()" class="w-32">
-            <span id="momVal" class="text-[11px] text-orange-500 font-bold">0.8%</span>
+        <div class="flex items-center gap-3">
+            <span class="text-[11px] font-bold text-zinc-400">PRE-MOM:</span>
+            <input type="range" id="momRange" min="3" max="50" value="8" oninput="updateRangeText()" class="w-24">
+            <span id="momVal" class="text-[11px] text-orange-500 font-bold w-8">0.8%</span>
         </div>
-        <div class="text-[10px] text-zinc-500 italic">※ 獵殺門檻固定為預警的 2.5 倍速度</div>
     </div>
 
     <div class="flex flex-1 overflow-hidden">
@@ -53,7 +55,7 @@
         <aside class="w-80 border-l border-yellow-900 bg-black flex flex-col shrink-0">
             <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
                 <h2 class="font-bold text-red-500 text-sm">📂 戰鬥日誌</h2>
-                <div id="timerDisplay" class="text-[9px] text-zinc-500">OFFLINE</div>
+                <div id="timerDisplay" class="text-[9px] text-zinc-500 uppercase">OFFLINE</div>
             </div>
             <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
         </aside>
@@ -62,40 +64,33 @@
 <script>
     const CONFIG = {
         PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", 
-        PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw", 
+        PO_TOKEN: "acyoe3sz15x491r1349fdcau7x6pw", 
         EXCLUDE: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'],
-        SAMPLE_SIZE: 45,      
+        SAMPLE_SIZE: 60, // 5秒一動，存60個點約5分鐘
         COOLDOWN_MS: 300000 
     };
 
-    // 🏮 動態參數控制
-    let PARAMS = {
-        ENTRY_SLOPE: -0.15,
-        PRE_MOM: 0.008,
-        PRE_SLOPE: -0.25,
-        HUNT_MOM: 0.02,
-        HUNT_SLOPE: -0.4
-    };
-
-    let pinnedCoins = [], pinnedFast = [];
-    let coinHistory = {}, baseOI = {}, joinTime = {}, lastPushTime = {}, oiHistory = {}; 
-    let cooldownList = {}; 
-    let isRunning = false, timer = null;
+    let PARAMS = { ENTRY_SLOPE: -0.15, PRE_MOM: 0.008, PRE_SLOPE: -0.25, HUNT_MOM: 0.02, HUNT_SLOPE: -0.4 };
+    let pinnedCoins = [], pinnedFast = [], priceHistory = {}, coinHistory = {}, baseOI = {}, joinTime = {}, lastPushTime = {}, oiHistory = {}; 
+    let cooldownList = {}, isRunning = false, timer = null, isUpOnly = false;
 
     function updateRangeText() {
         const eVal = document.getElementById('entryRange').value;
         const mVal = document.getElementById('momRange').value;
-        
-        // 更新 UI 顯示
         document.getElementById('entryVal').innerText = `-${eVal}%`;
         document.getElementById('momVal').innerText = `${(mVal/10).toFixed(1)}%`;
-
-        // 更新核心邏輯參數
         PARAMS.ENTRY_SLOPE = -(eVal / 100);
         PARAMS.PRE_MOM = mVal / 1000;
-        PARAMS.PRE_SLOPE = -(eVal * 1.6 / 100); // 預警斜率隨比例增加
-        PARAMS.HUNT_MOM = (mVal * 2.5) / 1000; // 獵殺動能為預警 2.5 倍
+        PARAMS.PRE_SLOPE = -(eVal * 1.6 / 100);
+        PARAMS.HUNT_MOM = (mVal * 2.5) / 1000;
         PARAMS.HUNT_SLOPE = -(eVal * 2.6 / 100); 
+    }
+
+    function toggleUpFilter() {
+        isUpOnly = !isUpOnly;
+        const btn = document.getElementById('upFilterBtn');
+        btn.className = isUpOnly ? "text-[10px] filter-on px-3 py-1 rounded font-bold border transition-all" : "text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600 transition-all";
+        render();
     }
 
     function toggleSystem() {
@@ -128,14 +123,23 @@
             for (const coin of allData) {
                 const s = coin.symbol;
                 if (CONFIG.EXCLUDE.includes(s)) continue;
-                if (cooldownList[s] && (now - cooldownList[s] < CONFIG.COOLDOWN_MS)) continue;
                 
                 const fNow = parseFloat(coin.lastFundingRate);
+                const pNow = parseFloat(coin.markPrice);
+                
+                // 價格歷史紀錄 (為了判斷 5 分鐘漲跌)
+                if (!priceHistory[s]) priceHistory[s] = [];
+                priceHistory[s].push(pNow);
+                if (priceHistory[s].length > CONFIG.SAMPLE_SIZE) priceHistory[s].shift();
+
+                // 資費歷史
                 if (!coinHistory[s]) coinHistory[s] = [];
                 coinHistory[s].push(fNow);
                 if (coinHistory[s].length > CONFIG.SAMPLE_SIZE) coinHistory[s].shift();
 
-                if (coinHistory[s].length >= CONFIG.SAMPLE_SIZE) {
+                if (cooldownList[s] && (now - cooldownList[s] < CONFIG.COOLDOWN_MS)) continue;
+
+                if (coinHistory[s].length >= 30) {
                     const slope = (fNow - coinHistory[s][0]) / Math.abs(coinHistory[s][0]);
                     if (fNow <= -0.0001 && slope <= PARAMS.ENTRY_SLOPE) { 
                         if (!pinnedCoins.includes(s)) {
@@ -158,11 +162,18 @@
     function render(allData = []) {
         const container = document.getElementById('dashboard');
         container.innerHTML = '';
+        
         pinnedCoins.forEach(s => {
             const data = allData.find(c => c.symbol === s);
+            const pNow = data ? parseFloat(data.markPrice) : 0;
+            const pOld = priceHistory[s] ? priceHistory[s][0] : pNow;
+            const isRising = pNow > pOld;
+
+            // 🏮 如果開啟「僅看上漲」且該幣沒漲，直接跳過不顯示 (背景繼續算)
+            if (isUpOnly && !isRising) return;
+
             const fNow = data ? parseFloat(data.lastFundingRate) : 0;
-            const slope = (coinHistory[s] && coinHistory[s].length >= CONFIG.SAMPLE_SIZE) ? 
-                         (fNow - coinHistory[s][0]) / Math.abs(coinHistory[s][0]) : 0;
+            const slope = (coinHistory[s] && coinHistory[s].length >= 30) ? (fNow - coinHistory[s][0]) / Math.abs(coinHistory[s][0]) : 0;
             const growth = baseOI[s] ? (oiHistory[s] - baseOI[s]) / baseOI[s] : 0;
             const isPinned = pinnedFast.includes(s);
             
@@ -173,7 +184,7 @@
             if (level > 0) {
                 const pushKey = `${s}_${level}`;
                 if (!lastPushTime[pushKey] || (Date.now() - lastPushTime[pushKey] > 900000)) {
-                    sendPush(level === 2 ? `🔥 獵殺: ${s.replace('USDT','')}` : `📡 預警: ${s.replace('USDT','')}`, `MOM: +${(growth*100).toFixed(1)}%\nSLOPE: ${(slope*100).toFixed(1)}%`, level === 2 ? 1 : 0);
+                    sendPush(level === 2 ? `🔥 獵殺: ${s.replace('USDT','')}` : `📡 預警: ${s.replace('USDT','')}`, `MOM: +${(growth*100).toFixed(1)}%\n漲幅: ${(((pNow-pOld)/pOld)*100).toFixed(2)}%`, level === 2 ? 1 : 0);
                     addLog(s, slope, growth, level);
                     lastPushTime[pushKey] = Date.now();
                 }
@@ -183,21 +194,21 @@
             card.className = `p-4 bg-zinc-900 rounded ${isPinned ? 'pinned-card' : (level===2?'hunt-card':(level===1?'alert-card':'gold-border'))}`;
             card.innerHTML = `
                 <div class="flex justify-between items-center text-[9px] mb-2 font-bold uppercase">
-                    <span class="${isPinned ? 'text-cyan-400' : 'text-zinc-500'}">${isPinned ? '⚡ 3S SCAN' : 'Monitoring'}</span>
-                    <div class="flex gap-2">
-                        <button onclick="togglePin('${s}')" class="text-xs hover:scale-125 transition-transform">${isPinned ? '📍' : '📌'}</button>
-                        <button onclick="removeCoin('${s}')" class="text-xs hover:text-white transition-colors">❌</button>
+                    <span class="${isRising ? 'text-green-400' : 'text-zinc-500'}">${isRising ? '📈 RISING' : 'Monitoring'}</span>
+                    <div class="flex gap-2 text-xs">
+                        <button onclick="togglePin('${s}')">${isPinned ? '📍' : '📌'}</button>
+                        <button onclick="removeCoin('${s}')">❌</button>
                     </div>
                 </div>
                 <div class="flex justify-between items-center">
                     <h2 class="text-3xl font-black text-white leading-none">${s.replace('USDT','')}</h2>
                     <div class="text-right">
                         <p class="text-lg font-bold text-red-500">${(fNow * 100).toFixed(4)}%</p>
-                        <p class="text-[10px] text-yellow-600 font-bold">MOM: +${(growth * 100).toFixed(1)}%</p>
+                        <p class="text-[10px] ${isRising?'text-green-500':'text-zinc-500'} font-bold">5M: ${(((pNow-pOld)/pOld)*100).toFixed(2)}%</p>
                     </div>
                 </div>
-                <div class="mt-2 text-[9px] text-zinc-600 flex justify-between italic border-t border-zinc-800 pt-2">
-                    <span>SINCE: ${joinTime[s]}</span>
+                <div class="mt-2 text-[9px] text-zinc-600 flex justify-between italic pt-2 border-t border-zinc-800">
+                    <span>MOM: +${(growth*100).toFixed(1)}%</span>
                     <span>SLP: ${(slope*100).toFixed(1)}%</span>
                 </div>
             `;
@@ -223,6 +234,8 @@
         fetch('https://api.pushover.net/1/messages.json', { method: 'POST', body: params });
     }
 
+    function removeCoin(s) { cooldownList[s] = Date.now(); pinnedCoins = pinnedCoins.filter(c => c !== s); pinnedFast = pinnedFast.filter(c => c !== s); render(); }
+    function togglePin(s) { if (pinnedFast.includes(s)) pinnedFast = pinnedFast.filter(c => c !== s); else pinnedFast.push(s); render(); }
     async function manualAdd() {
         const input = document.getElementById('searchInput');
         let s = input.value.toUpperCase().trim();
@@ -236,27 +249,13 @@
             render();
         }
     }
-
-    function togglePin(s) {
-        if (pinnedFast.includes(s)) pinnedFast = pinnedFast.filter(c => c !== s);
-        else pinnedFast.push(s);
-        render();
-    }
-
-    function removeCoin(s) {
-        cooldownList[s] = Date.now();
-        pinnedCoins = pinnedCoins.filter(c => c !== s);
-        pinnedFast = pinnedFast.filter(c => c !== s);
-        render();
-    }
-
     function clearAllCoins() { pinnedCoins = []; pinnedFast = []; render(); }
-    function testPush() { sendPush("Sniper V3.4 測試", "手動調控面板測試正常", 0); alert("測試中..."); }
+    function testPush() { sendPush("Sniper V3.5 測試", "上漲過濾與 5 分鐘價格監控正常", 0); alert("測試中..."); }
     function addLog(s, slope, growth, level) {
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
         entry.className = `p-2 bg-zinc-900 border-l-4 ${level===2?'border-red-600':'border-orange-500'} text-[10px] mb-1`;
-        entry.innerHTML = `<b>${level===2?'🔥':'📡'} ${s.replace('USDT','')}</b> MOM:+${(growth*100).toFixed(1)}% <span class="float-right text-zinc-500">${new Date().toLocaleTimeString()}</span>`;
+        entry.innerHTML = `<b>${level===2?'🔥':'📡'} ${s}</b> MOM:+${(growth*100).toFixed(1)}% <span class="float-right text-zinc-500">${new Date().toLocaleTimeString()}</span>`;
         container.prepend(entry);
     }
 </script>
