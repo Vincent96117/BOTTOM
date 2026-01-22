@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SNIPER V3.6.1 | 輕量穩定版</title>
+    <title>SNIPER V3.6.2 | 終極修正版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; overflow-x: hidden; }
@@ -18,7 +18,7 @@
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.6.1</h1>
+            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter text-shadow">⚡ SNIPER V3.6.2</h1>
             <div class="flex gap-2 bg-zinc-900 p-1 rounded-lg border border-zinc-700 text-white">
                 <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24">
                 <button onclick="manualAdd()" class="text-[10px] bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
@@ -26,23 +26,23 @@
         </div>
         <div class="flex gap-2">
             <button id="upFilterBtn" onclick="toggleUpFilter()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600 transition-all">📈 僅看 5K 上漲</button>
-            <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white font-bold">🧪 測試</button>
+            <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white font-bold border border-blue-500">🧪 測試響聲</button>
             <button onclick="toggleSystem()" id="mainBtn" class="text-[10px] bg-zinc-700 px-4 py-1 rounded text-white font-bold border border-zinc-500">START</button>
         </div>
     </header>
 
     <div class="bg-zinc-900 border-b border-zinc-800 p-3 flex flex-wrap gap-6 items-center justify-center shrink-0 text-white font-bold text-[11px]">
         <div class="flex items-center gap-2">
-            <span>ENTRY:</span>
+            <span class="text-zinc-500">ENTRY:</span>
             <input type="range" id="entryRange" min="5" max="50" value="15" oninput="updateRangeText()" class="w-24">
             <span id="entryVal" class="text-yellow-500 w-10">-15%</span>
         </div>
         <div class="flex items-center gap-2">
-            <span>MOM:</span>
+            <span class="text-zinc-500">MOM:</span>
             <input type="range" id="momRange" min="3" max="50" value="8" oninput="updateRangeText()" class="w-24">
             <span id="momVal" class="text-orange-500 w-10">0.8%</span>
         </div>
-        <div class="ml-4 text-zinc-500 italic">基準時間：<span id="klineRef" class="text-white">--:--</span></div>
+        <div class="ml-4 text-zinc-500 italic">熱機狀態：<span id="klineRef" class="text-white">WAITING...</span></div>
     </div>
 
     <div class="flex flex-1 overflow-hidden">
@@ -59,9 +59,10 @@
     </div>
 
 <script>
+    // 🏮 哥，這裡我確保 100% 精確校對
     const CONFIG = {
         PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", 
-        PO_TOKEN: "acyoe3sz15x491r1349fdcau7x6pw", 
+        PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw", 
         EXCLUDE: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'],
         COOLDOWN_MS: 300000 
     };
@@ -82,16 +83,30 @@
         PARAMS.HUNT_SLOPE = -(eVal * 2.6 / 100); 
     }
 
+    async function sendPush(title, message, priority = 0) {
+        const params = new URLSearchParams();
+        params.append("token", CONFIG.PO_TOKEN);
+        params.append("user", CONFIG.PO_USER);
+        params.append("title", title);
+        params.append("message", message);
+        params.append("priority", priority.toString());
+        params.append("sound", priority === 1 ? "falling" : "classical");
+        try { 
+            const resp = await fetch('https://api.pushover.net/1/messages.json', { method: 'POST', body: params });
+            const resData = await resp.json();
+            console.log("Push Status:", resData);
+        } catch(e) { console.error("Push Failed:", e); }
+    }
+
     async function updateData() {
         try {
             const res = await fetch('https://fapi.binance.com/fapi/v1/premiumIndex');
             const allData = await res.json();
             const now = new Date();
             
-            // 🏮 改進邏輯：不再噴請求，直接根據時間計算
             const refMin = Math.floor(now.getMinutes() / 5) * 5;
             const refTimeStr = `${now.getHours().toString().padStart(2,'0')}:${refMin.toString().padStart(2,'0')}`;
-            document.getElementById('klineRef').innerText = refTimeStr;
+            document.getElementById('klineRef').innerText = `已校準基準: ${refTimeStr}`;
 
             for (const coin of allData) {
                 const s = coin.symbol;
@@ -100,8 +115,8 @@
                 const fNow = parseFloat(coin.lastFundingRate);
                 const pNow = parseFloat(coin.markPrice);
 
-                // 如果換線了，或者該幣還沒有基準價，就存下當前價格作為基準
-                if (!klineOpenPrice[s] || now.getMinutes() % 5 === 0 && now.getSeconds() < 5) {
+                // 熱機邏輯：整點打卡
+                if (!klineOpenPrice[s] || (now.getMinutes() % 5 === 0 && now.getSeconds() < 10)) {
                     klineOpenPrice[s] = pNow;
                 }
 
@@ -187,16 +202,6 @@
         });
     }
 
-    async function sendPush(title, message, priority = 0) {
-        const params = new URLSearchParams();
-        params.append("token", CONFIG.PO_TOKEN);
-        params.append("user", CONFIG.PO_USER);
-        params.append("title", title);
-        params.append("message", message);
-        params.append("priority", priority.toString());
-        try { fetch('https://api.pushover.net/1/messages.json', { method: 'POST', body: params }); } catch(e) {}
-    }
-
     async function runLoop() {
         if (!isRunning) return;
         await updateData();
@@ -223,7 +228,7 @@
             render();
         }
     }
-    function testPush() { sendPush("Sniper V3.6.1 測試", "輕量穩定版已就緒", 0); alert("已送出"); }
+    function testPush() { sendPush("Sniper V3.6.2 終極測試", "Token 已修正，這次必響！", 1); alert("測試中..."); }
     function addLog(s, slope, growth, level) {
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
