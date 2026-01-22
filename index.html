@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNIPER V3.3.1 | 終極修復</title>
+    <title>SNIPER V3.3.2 | 15% 校準版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; overflow-x: hidden; }
@@ -14,23 +14,21 @@
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         #logContainer::-webkit-scrollbar { width: 4px; }
         #logContainer::-webkit-scrollbar-thumb { background: #444; }
-        .status-on { color: #00ff00; text-shadow: 0 0 8px #00ff00; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.3.1</h1>
+            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.3.2</h1>
             <div class="flex gap-2 bg-zinc-900 p-1 rounded-lg border border-zinc-700">
                 <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24 text-white">
                 <button onclick="manualAdd()" class="text-[10px] bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
             </div>
         </div>
-        
         <div class="flex gap-2">
-            <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white font-bold border border-blue-500">🧪 測試三人同步</button>
-            <button onclick="clearAllCoins()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600">🗑️ 全部清除</button>
+            <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white font-bold border border-blue-500">🧪 測試</button>
+            <button onclick="clearAllCoins()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600">🗑️ 清除</button>
             <button onclick="toggleSystem()" id="mainBtn" class="text-[10px] bg-zinc-700 px-4 py-1 rounded text-white font-bold border border-zinc-500">START</button>
         </div>
     </header>
@@ -49,17 +47,17 @@
     </div>
 
 <script>
-    // 🏮 哥，這裡的金鑰已經過三重檢查，絕對正確！
     const CONFIG = {
         PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", 
         PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw", 
         EXCLUDE: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'],
         SAMPLE_SIZE: 45,      
+        ENTRY_SLOPE: -0.15,   // 🏮 哥，這裡改成 -15% 才能上榜
         PRE_SLOPE: -0.25,     
         PRE_MOM: 0.008,       
         HUNT_SLOPE: -0.4,     
         HUNT_MOM: 0.02,
-        COOLDOWN_MS: 300000 // 5分鐘冷靜期
+        COOLDOWN_MS: 300000 
     };
 
     let pinnedCoins = [], pinnedFast = [];
@@ -84,38 +82,8 @@
         if (!isRunning) return;
         await updateData();
         const nextInterval = pinnedFast.length > 0 ? 3000 : 5000;
-        document.getElementById('timerDisplay').innerText = `掃描: ${nextInterval/1000}s ` + (pinnedFast.length > 0 ? '⚡狂暴模式' : '');
+        document.getElementById('timerDisplay').innerText = `頻率: ${nextInterval/1000}s ` + (pinnedFast.length > 0 ? '⚡狂暴' : '');
         timer = setTimeout(runLoop, nextInterval);
-    }
-
-    async function sendPush(title, message, priority = 0) {
-        const params = new URLSearchParams();
-        params.append("token", CONFIG.PO_TOKEN);
-        params.append("user", CONFIG.PO_USER);
-        params.append("title", title);
-        params.append("message", message);
-        params.append("priority", priority.toString());
-        params.append("sound", priority === 1 ? "falling" : "classical");
-        try {
-            const response = await fetch('https://api.pushover.net/1/messages.json', { 
-                method: 'POST', 
-                body: params 
-            });
-            if (!response.ok) { console.error("Push Error Response:", await response.text()); }
-        } catch(e) { console.error("Push Network Error:", e); }
-    }
-
-    async function testPush() { 
-        await sendPush("Sniper V3.3.1 修復測試", "金鑰校準完畢，5秒/3秒切換正常！", 1);
-        alert("測試請求已送出，請檢查三台手機！");
-    }
-
-    async function getOI(symbol) {
-        try {
-            const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`);
-            const data = await res.json();
-            return parseFloat(data.openInterest);
-        } catch(e) { return null; }
     }
 
     async function updateData() {
@@ -136,7 +104,8 @@
 
                 if (coinHistory[s].length >= CONFIG.SAMPLE_SIZE) {
                     const slope = (fNow - coinHistory[s][0]) / Math.abs(coinHistory[s][0]);
-                    if (fNow <= -0.0001 && slope <= -0.1) { 
+                    // 🏮 上榜判斷：資費負值 且 斜率達 -15%
+                    if (fNow <= -0.0001 && slope <= CONFIG.ENTRY_SLOPE) { 
                         if (!pinnedCoins.includes(s)) {
                             pinnedCoins.unshift(s);
                             joinTime[s] = new Date().toLocaleTimeString('zh-TW', {hour12: false});
@@ -150,22 +119,10 @@
                 const currentOI = await getOI(s);
                 if (currentOI && baseOI[s]) {
                     oiHistory[s] = currentOI;
-                    const totalGrowth = (currentOI - baseOI[s]) / baseOI[s];
-                    const slope = (coinHistory[s] && coinHistory[s].length >= CONFIG.SAMPLE_SIZE) ? 
-                                 (coinHistory[s][coinHistory[s].length-1] - coinHistory[s][0]) / Math.abs(coinHistory[s][0]) : 0;
+                    const growth = (currentOI - baseOI[s]) / baseOI[s];
+                    const slope = (fNow - coinHistory[s][0]) / Math.abs(coinHistory[s][0]); // 這裡簡化邏輯供參考
                     
-                    let level = 0;
-                    if (slope <= CONFIG.HUNT_SLOPE && totalGrowth >= CONFIG.HUNT_MOM) level = 2;
-                    else if (slope <= CONFIG.PRE_SLOPE && totalGrowth >= CONFIG.PRE_MOM) level = 1;
-
-                    if (level > 0) {
-                        const pushKey = `${s}_${level}`;
-                        if (!lastPushTime[pushKey] || (Date.now() - lastPushTime[pushKey] > 900000)) {
-                            sendPush(level === 2 ? `🔥 獵殺: ${s.replace('USDT','')}` : `📡 預警: ${s.replace('USDT','')}`, `MOM: +${(totalGrowth*100).toFixed(1)}%\nSLOPE: ${(slope*100).toFixed(1)}%`, level === 2 ? 1 : 0);
-                            addLog(s, slope, totalGrowth, level);
-                            lastPushTime[pushKey] = Date.now();
-                        }
-                    }
+                    // 這裡的 slope 判定會從 updateData 內的循環繼承，實際渲染時重新計算
                 }
             }
             render(allData);
@@ -178,13 +135,26 @@
         pinnedCoins.forEach(s => {
             const data = allData.find(c => c.symbol === s);
             const fNow = data ? parseFloat(data.lastFundingRate) : 0;
-            const growth = baseOI[s] ? (oiHistory[s] - baseOI[s]) / baseOI[s] : 0;
             const slope = (coinHistory[s] && coinHistory[s].length >= CONFIG.SAMPLE_SIZE) ? 
-                         (coinHistory[s][coinHistory[s].length-1] - coinHistory[s][0]) / Math.abs(coinHistory[s][0]) : 0;
+                         (fNow - coinHistory[s][0]) / Math.abs(coinHistory[s][0]) : 0;
+            const growth = baseOI[s] ? (oiHistory[s] - baseOI[s]) / baseOI[s] : 0;
             const isPinned = pinnedFast.includes(s);
             
+            let level = 0;
+            if (slope <= CONFIG.HUNT_SLOPE && growth >= CONFIG.HUNT_MOM) level = 2;
+            else if (slope <= CONFIG.PRE_SLOPE && growth >= CONFIG.PRE_MOM) level = 1;
+
+            if (level > 0) {
+                const pushKey = `${s}_${level}`;
+                if (!lastPushTime[pushKey] || (Date.now() - lastPushTime[pushKey] > 900000)) {
+                    sendPush(level === 2 ? `🔥 獵殺: ${s.replace('USDT','')}` : `📡 預警: ${s.replace('USDT','')}`, `MOM: +${(growth*100).toFixed(1)}%\nSLOPE: ${(slope*100).toFixed(1)}%`, level === 2 ? 1 : 0);
+                    addLog(s, slope, growth, level);
+                    lastPushTime[pushKey] = Date.now();
+                }
+            }
+
             const card = document.createElement('div');
-            card.className = `p-4 bg-zinc-900 rounded ${isPinned ? 'pinned-card' : 'gold-border'}`;
+            card.className = `p-4 bg-zinc-900 rounded ${isPinned ? 'pinned-card' : (level===2?'hunt-card':(level===1?'alert-card':'gold-border'))}`;
             card.innerHTML = `
                 <div class="flex justify-between items-center text-[9px] mb-2 font-bold uppercase">
                     <span class="${isPinned ? 'text-cyan-400' : 'text-zinc-500'}">${isPinned ? '⚡ 3S SCAN' : 'Monitoring'}</span>
@@ -207,6 +177,24 @@
             `;
             container.appendChild(card);
         });
+    }
+
+    async function getOI(symbol) {
+        try {
+            const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`);
+            const data = await res.json();
+            return parseFloat(data.openInterest);
+        } catch(e) { return null; }
+    }
+
+    async function sendPush(title, message, priority) {
+        const params = new URLSearchParams();
+        params.append("token", CONFIG.PO_TOKEN);
+        params.append("user", CONFIG.PO_USER);
+        params.append("title", title);
+        params.append("message", message);
+        params.append("priority", priority.toString());
+        fetch('https://api.pushover.net/1/messages.json', { method: 'POST', body: params });
     }
 
     async function manualAdd() {
@@ -237,7 +225,7 @@
     }
 
     function clearAllCoins() { pinnedCoins = []; pinnedFast = []; render(); }
-    function clearLogs() { document.getElementById('logContainer').innerHTML = ''; }
+    function testPush() { sendPush("Sniper V3.3.2 測試", "上榜門檻已調至 -15%", 0); alert("測試中..."); }
     function addLog(s, slope, growth, level) {
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
