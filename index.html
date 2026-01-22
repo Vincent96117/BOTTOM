@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SNIPER V3.6 | 整點 5K 對齊版</title>
+    <title>SNIPER V3.6.1 | 輕量穩定版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; overflow-x: hidden; }
@@ -18,33 +18,31 @@
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.6</h1>
-            <div class="flex gap-2 bg-zinc-900 p-1 rounded-lg border border-zinc-700">
-                <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24 text-white">
+            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.6.1</h1>
+            <div class="flex gap-2 bg-zinc-900 p-1 rounded-lg border border-zinc-700 text-white">
+                <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24">
                 <button onclick="manualAdd()" class="text-[10px] bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
             </div>
         </div>
-        
         <div class="flex gap-2">
             <button id="upFilterBtn" onclick="toggleUpFilter()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600 transition-all">📈 僅看 5K 上漲</button>
             <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white font-bold">🧪 測試</button>
-            <button onclick="clearAllCoins()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold">🗑️ 清除</button>
             <button onclick="toggleSystem()" id="mainBtn" class="text-[10px] bg-zinc-700 px-4 py-1 rounded text-white font-bold border border-zinc-500">START</button>
         </div>
     </header>
 
     <div class="bg-zinc-900 border-b border-zinc-800 p-3 flex flex-wrap gap-6 items-center justify-center shrink-0 text-white font-bold text-[11px]">
         <div class="flex items-center gap-2">
-            <span class="text-zinc-400 uppercase">ENTRY:</span>
+            <span>ENTRY:</span>
             <input type="range" id="entryRange" min="5" max="50" value="15" oninput="updateRangeText()" class="w-24">
             <span id="entryVal" class="text-yellow-500 w-10">-15%</span>
         </div>
         <div class="flex items-center gap-2">
-            <span class="text-zinc-400 uppercase">MOM:</span>
+            <span>MOM:</span>
             <input type="range" id="momRange" min="3" max="50" value="8" oninput="updateRangeText()" class="w-24">
             <span id="momVal" class="text-orange-500 w-10">0.8%</span>
         </div>
-        <div class="ml-4 text-zinc-500 italic">基準線：<span id="klineRef" class="text-white">--:--</span> (5分K開盤)</div>
+        <div class="ml-4 text-zinc-500 italic">基準時間：<span id="klineRef" class="text-white">--:--</span></div>
     </div>
 
     <div class="flex flex-1 overflow-hidden">
@@ -52,9 +50,9 @@
             <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div>
         </main>
         <aside class="w-80 border-l border-yellow-900 bg-black flex flex-col shrink-0">
-            <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
-                <h2 class="font-bold text-red-500 text-sm italic">戦場日誌 Sniper v3.6</h2>
-                <div id="timerDisplay" class="text-[9px] text-zinc-500 uppercase tracking-widest">OFFLINE</div>
+            <div class="p-4 border-b border-zinc-800 flex justify-between items-center text-sm font-bold text-red-500">
+                <h2>戰鬥日誌</h2>
+                <div id="timerDisplay" class="text-[9px] text-zinc-500 uppercase">OFFLINE</div>
             </div>
             <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
         </aside>
@@ -63,7 +61,7 @@
 <script>
     const CONFIG = {
         PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", 
-        PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw", 
+        PO_TOKEN: "acyoe3sz15x491r1349fdcau7x6pw", 
         EXCLUDE: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'BNXUSDT'],
         COOLDOWN_MS: 300000 
     };
@@ -84,34 +82,27 @@
         PARAMS.HUNT_SLOPE = -(eVal * 2.6 / 100); 
     }
 
-    // 🏮 核心修補：取得 5 分 K 整點開盤價
-    async function getKlineOpen(symbol) {
-        try {
-            const res = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=5m&limit=1`);
-            const data = await res.json();
-            return parseFloat(data[0][1]); // 抓開盤價
-        } catch(e) { return null; }
-    }
-
     async function updateData() {
         try {
             const res = await fetch('https://fapi.binance.com/fapi/v1/premiumIndex');
             const allData = await res.json();
             const now = new Date();
             
-            // 更新 UI 上的基準時間點 (例如 3:12 -> 顯示 03:10)
+            // 🏮 改進邏輯：不再噴請求，直接根據時間計算
             const refMin = Math.floor(now.getMinutes() / 5) * 5;
-            document.getElementById('klineRef').innerText = `${now.getHours().toString().padStart(2,'0')}:${refMin.toString().padStart(2,'0')}`;
+            const refTimeStr = `${now.getHours().toString().padStart(2,'0')}:${refMin.toString().padStart(2,'0')}`;
+            document.getElementById('klineRef').innerText = refTimeStr;
 
             for (const coin of allData) {
                 const s = coin.symbol;
                 if (CONFIG.EXCLUDE.includes(s)) continue;
                 
                 const fNow = parseFloat(coin.lastFundingRate);
-                
-                // 每次循環更新一次該幣的 5K 開盤價基準
-                if (!klineOpenPrice[s] || now.getMinutes() % 5 === 0) {
-                    klineOpenPrice[s] = await getKlineOpen(s);
+                const pNow = parseFloat(coin.markPrice);
+
+                // 如果換線了，或者該幣還沒有基準價，就存下當前價格作為基準
+                if (!klineOpenPrice[s] || now.getMinutes() % 5 === 0 && now.getSeconds() < 5) {
+                    klineOpenPrice[s] = pNow;
                 }
 
                 if (!coinHistory[s]) coinHistory[s] = [];
@@ -150,7 +141,6 @@
             const pOpen = klineOpenPrice[s] || pNow;
             const isRising = pNow > pOpen;
 
-            // 🏮 上漲過濾：只看當前 5 分 K 是「陽線」的幣
             if (isUpOnly && !isRising) return;
 
             const fNow = data ? parseFloat(data.lastFundingRate) : 0;
@@ -165,7 +155,7 @@
             if (level > 0) {
                 const pushKey = `${s}_${level}`;
                 if (!lastPushTime[pushKey] || (Date.now() - lastPushTime[pushKey] > 900000)) {
-                    sendPush(level === 2 ? `🔥 獵殺: ${s.replace('USDT','')}` : `📡 預警: ${s.replace('USDT','')}`, `MOM: +${(growth*100).toFixed(1)}%\n5K漲幅: ${(((pNow-pOpen)/pOpen)*100).toFixed(2)}%`, level === 2 ? 1 : 0);
+                    sendPush(level === 2 ? `🔥 獵殺: ${s.replace('USDT','')}` : `📡 預警: ${s.replace('USDT','')}`, `MOM: +${(growth*100).toFixed(1)}%\n漲幅: ${(((pNow-pOpen)/pOpen)*100).toFixed(2)}%`, level === 2 ? 1 : 0);
                     addLog(s, slope, growth, level);
                     lastPushTime[pushKey] = Date.now();
                 }
@@ -233,8 +223,7 @@
             render();
         }
     }
-    function clearAllCoins() { pinnedCoins = []; pinnedFast = []; render(); }
-    function testPush() { sendPush("Sniper V3.6 測試", "5K 整點對齊測試", 0); alert("已送出"); }
+    function testPush() { sendPush("Sniper V3.6.1 測試", "輕量穩定版已就緒", 0); alert("已送出"); }
     function addLog(s, slope, growth, level) {
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
